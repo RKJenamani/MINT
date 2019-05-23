@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>MINT</name>
+  <version>0.1.0</version>
+  <description>Motion Planning using Tensor Graph Products on DART/Aikido stack</description>
+  <license>UNRELEASED</license>
+
+  <maintainer email="rajatkj@uw.edu">Rajat Kumar Jenamani</maintainer>
+
+  <depend>boost</depend>
+  <depend>dartsim</depend>
+  <depend>eigen</depend>
+  <depend>aikido</depend>
+  <depend>libherb</depend>
+
+  <depend>herb_description</depend>
+  <depend>pr_assets</depend>
+  <depend>pr_tsr</depend>
+
+	<exec_depend>catkin</exec_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>cmake</buildtool_depend>
+  <export>
+	<build_type>cmake</build_type>
+  </export>
+</package>
