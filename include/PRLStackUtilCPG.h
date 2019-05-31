@@ -328,7 +328,7 @@ public:
 			left_target << target_config.segment(0,dim);
 			right_target << target_config.segment(dim,dim);
 
-			if(left_source==left_target)
+			if(left_source.isApprox(left_target))
 			{
 				std::cout<<"Right Arm movement! "<<std::endl;
 				executeEdgeRight(nh,right_source,right_target);
@@ -420,7 +420,7 @@ public:
 		mRightArm->setPositions(right_source);			
 
 
-		if (left_source==left_target)
+		if (left_source.isApprox(left_target))
 		{
 			// std::cout<<"Right Arm movement! "<<std::endl;
 			return getRightCollisionStatus(right_source,right_target);
