@@ -94,15 +94,15 @@ public:
 		Eigen::Isometry3d tablePose;
 		perceiveObject(nh,resourceRetriever,table,tablePose,"table");
 
-		SkeletonPtr shelf;
-		Eigen::Isometry3d shelfPose;
-		perceiveObject(nh,resourceRetriever,shelf,shelfPose,"shelf");
+		// SkeletonPtr shelf;
+		// Eigen::Isometry3d shelfPose;
+		// perceiveObject(nh,resourceRetriever,shelf,shelfPose,"shelf");
 
 		SkeletonPtr can;
 		Eigen::Isometry3d canPose;
 		perceiveObject(nh,resourceRetriever,can,canPose,"can");
 
-		// mObstacles.push_back(table);
+		mObstacles.push_back(table);
 		// mObstacles.push_back(shelf);
 		mObstacles.push_back(can);
 
@@ -125,11 +125,11 @@ public:
 
 
 		//Collision group for left arm
-		std::shared_ptr<CollisionGroup> rightArmGroup = envDetector->createCollisionGroup( mRobot->getLeftArm()->getMetaSkeleton().get(),
+		std::shared_ptr<CollisionGroup> leftArmGroup = envDetector->createCollisionGroup( mRobot->getLeftArm()->getMetaSkeleton().get(),
 				mRobot->getLeftHand()->getMetaSkeleton().get());
 
 		//Collision group for right arm
-		std::shared_ptr<CollisionGroup> leftArmGroup = envDetector->createCollisionGroup( mRobot->getRightArm()->getMetaSkeleton().get(),
+		std::shared_ptr<CollisionGroup> rightArmGroup = envDetector->createCollisionGroup( mRobot->getRightArm()->getMetaSkeleton().get(),
 				mRobot->getRightHand()->getMetaSkeleton().get());
 
 		//adding arms collision checking
@@ -295,8 +295,6 @@ public:
 
 		viewer.setAutoUpdate(true);
 
-		waitForUser("Press [ENTER] to start Execution: ");
-
 		size_t dim = (configs.at(0).size())/2;
 
 		Eigen::VectorXd lStart(dim);
@@ -306,6 +304,8 @@ public:
 		Eigen::VectorXd rStart(dim);
 	  	rStart << configs.at(0).segment(dim,dim);
 		mRightArm->setPositions(rStart);
+
+		waitForUser("Press [ENTER] to start Execution: ");
 
 
 		for(size_t i=0;i<configs.size()-1;i++)
@@ -342,5 +342,94 @@ public:
 
 		std::cout << "[INFO]: Done Executing!" << std::endl;
 		ros::shutdown();
+	}
+
+	bool getRightCollisionStatus(Eigen::VectorXd &source_config, Eigen::VectorXd &target_config )
+	{
+		bool col =false;
+		auto source_state = mRightArmSpace->createState();
+		mRightArmSpace->convertPositionsToState(source_config, source_state);
+		auto target_state = mRightArmSpace->createState();
+		mRightArmSpace->convertPositionsToState(target_config, target_state);
+
+		int qCount = 10;
+		double step = 1.0/qCount;
+		auto test_state = mRightArmSpace->createState();
+
+		for (double alpha = 0.0; alpha <= 1.0; alpha += step)
+		{
+			mRightInterpolator->interpolate(source_state, target_state, alpha, test_state);
+			if (!mRightFullTestable->isSatisfied(test_state))
+			{
+				col=true;
+			}
+		}
+	
+		return col;
+	}
+
+	bool getLeftCollisionStatus(Eigen::VectorXd &source_config, Eigen::VectorXd &target_config )
+	{
+		bool col =false;
+		auto source_state = mLeftArmSpace->createState();
+		mLeftArmSpace->convertPositionsToState(source_config, source_state);
+		auto target_state = mLeftArmSpace->createState();
+		mLeftArmSpace->convertPositionsToState(target_config, target_state);
+
+		int qCount = 10;
+		double step = 1.0/qCount;
+		auto test_state = mLeftArmSpace->createState();
+
+		for (double alpha = 0.0; alpha <= 1.0; alpha += step)
+		{
+			mLeftInterpolator->interpolate(source_state, target_state, alpha, test_state);
+			if (!mLeftFullTestable->isSatisfied(test_state))
+			{
+				col=true;
+			}
+		}
+	
+		return col;
+	}
+	bool getCollisionStatus(Eigen::VectorXd &source_config, Eigen::VectorXd &target_config)
+	{
+		int dim = (source_config.size())/2;
+		Eigen::VectorXd left_source(dim);
+		Eigen::VectorXd left_target(dim);
+				
+		Eigen::VectorXd right_source(dim);
+		Eigen::VectorXd right_target(dim);
+
+		left_source << source_config.segment(0,dim);
+		right_source << source_config.segment(dim,dim);
+
+		left_target << target_config.segment(0,dim);
+		right_target << target_config.segment(dim,dim);
+
+		// std::cout<<"Source config: ";
+		// for(int l=0;l<dim+dim;l++)
+			// std::cout<<source_config(l)<<" ";
+		// std::cout<<std::endl;
+
+		// std::cout<<"Target config: ";
+		// for(int l=0;l<dim+dim;l++)
+			// std::cout<<target_config(l)<<" ";
+		// std::cout<<std::endl;	
+
+		mLeftArm->setPositions(left_source);
+		mRightArm->setPositions(right_source);			
+
+
+		if (left_source==left_target)
+		{
+			// std::cout<<"Right Arm movement! "<<std::endl;
+			return getRightCollisionStatus(right_source,right_target);
+		}
+		else
+		{
+			// std::cout<<"Left Arm movement! "<<std::endl;
+			return getLeftCollisionStatus(left_source,left_target);
+		}
+
 	}
 };
