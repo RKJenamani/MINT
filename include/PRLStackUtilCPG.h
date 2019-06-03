@@ -1,3 +1,6 @@
+#ifndef PRLSTACK_UTIL_CPG_
+#define PRLSTACK_UTIL_CPG_
+
 #include <iostream>
 #include <Eigen/Dense>
 
@@ -433,3 +436,5 @@ public:
 
 	}
 };
+
+#endif
