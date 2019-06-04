@@ -40,15 +40,33 @@ namespace std //As  we are using map with Eigen::VectorXd as key!
 	};
 }
 
+template<typename T>
+struct matrix_hash : std::unary_function<T, size_t> {
+  std::size_t operator()(T const& matrix) const {
+    // Note that it is oblivious to the storage order of Eigen matrix (column- or
+    // row-major). It will give you the same hash value for two different matrices if they
+    // are the transpose of each other in different storage order.
+    size_t seed = 0;
+    for (size_t i = 0; i < matrix.size(); ++i) {
+      auto elem = *(matrix.data() + i);
+      seed ^= std::hash<typename T::Scalar>()(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    return seed;
+  }
+};
+
 class CartesianPG
 {
 public: //Change to private once this is working
 	std::unordered_map<int,Vertex> indexToNodeMap;
 
-	std::map<Eigen::VectorXd,Vertex> configToNodeMap;
+	std::unordered_map<int,bool> neighborsAddedMap;
+	// std::unordered_map<Eigen::VectorXd, Vertex, matrix_hash<Eigen::VectorXd>> configToNodeMap;
 
-	std::map<Eigen::VectorXd,Vertex> leftConfigToNodeMap; //used for implicit graph
-	std::map<Eigen::VectorXd,Vertex> rightConfigToNodeMap; //used for implicit map
+	std::unordered_map<Eigen::VectorXd,Vertex, matrix_hash<Eigen::VectorXd>> configToNodeMap;
+
+	std::unordered_map<Eigen::VectorXd,Vertex, matrix_hash<Eigen::VectorXd>> leftConfigToNodeMap; //used for implicit graph
+	std::unordered_map<Eigen::VectorXd,Vertex, matrix_hash<Eigen::VectorXd>> rightConfigToNodeMap; //used for implicit map
 
 public:
 	CartesianPG(){}
@@ -103,9 +121,6 @@ public:
 		// std::cout<<"Input 11[ENTER] to start search: ";
   // 		std::cin.get();
 
-		VPIndexMap oldIndexMap1 = get(&VProp::vertex_index,g1);
-		VPIndexMap oldIndexMap2 = get(&VProp::vertex_index,g2);
-
 		EPWeightMap newWeightMap = get(&EProp::weight,new_map);
 
 		EdgeIter ei1, eiend1;
@@ -157,29 +172,41 @@ public:
 	{
 		// std::cout<<"In getNeighborsImplicitCPG"<<std::endl;
 
+		// std::cout<<"In get getNeighborsImplicitCPG";
+		// std::cin.get();
 		VPIndexMap indexMap = get(&VProp::vertex_index,composite_map);
+
+
+		std::vector<Vertex> neighbors;
+		NeighborIter ai;
+		NeighborIter aiEnd;
+
+		if(neighborsAddedMap.count(indexMap[node]))
+		{
+			for (boost::tie(ai, aiEnd) = adjacent_vertices(node, composite_map); ai != aiEnd; ++ai) 
+			{
+				neighbors.push_back(*ai);
+			}
+			return neighbors;
+		}
+
+		neighborsAddedMap[indexMap[node]]=true;
+
 		VPStateMap stateMap = get(&VProp::state, composite_map);
 		EPWeightMap weightMap = get(&EProp::weight, composite_map);
 
 		VertexIter vi, viend;
-		// std::cout<<"//////////////////////////////"<<std::endl;
-		// for(boost::tie(vi,viend) = vertices(composite_map);vi!=viend; ++vi)
-		// 		std::cout<<"Initial Composite Map nodes Iteration: "<<stateMap[*vi]<<std::endl;
-		// std::cout<<"//////////////////////////////"<<std::endl;
+
 		Eigen::VectorXd composite_config = stateMap[node];
 		int dim = (composite_config.size()/2);
 		Eigen::VectorXd left_config = composite_config.segment(0,dim);
 		Eigen::VectorXd right_config = composite_config.segment(dim,dim);
 
-		std::vector<Vertex> neighbors;
 
 		Vertex left_map_node=leftConfigToNodeMap[left_config]; //Create Map!!
 		Vertex right_map_node=rightConfigToNodeMap[right_config]; //Create Map!!
 
 		size_t size = num_vertices(composite_map);
-
-		NeighborIter ai;
-		NeighborIter aiEnd;
 
 		// std::cout<<"Middle of getNeighborsImplicitCPG"<<std::endl;
 
@@ -197,9 +224,19 @@ public:
 			if(configToNodeMap.count(adjacent_composite_config))
 			{
 				// std::cin.get();
-
+				Vertex new_node = configToNodeMap[adjacent_composite_config];
 				// std::cout<<"Already Exists!! "<<indexMap[configToNodeMap[adjacent_composite_config]];
-				neighbors.push_back(configToNodeMap[adjacent_composite_config]);
+				bool edge_status = edge(new_node, node, composite_map).second;
+				// std::cout<<"Edge Status: "<<edge_status<<std::endl;
+				if(!edge_status)
+				{
+
+					Edge curEdge;
+					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
+					curEdge = (add_edge(new_node, node, composite_map)).first;
+					weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+				}
+				neighbors.push_back(new_node);
 				continue;
 			}
 
@@ -210,87 +247,16 @@ public:
 			configToNodeMap[adjacent_composite_config]=new_node;
 
 			Edge curEdge;
-			bool edge_status = edge(new_node, node, composite_map).second;
+			// bool edge_status = edge(new_node, node, composite_map).second;
 			// std::cout<<"Edge Status: "<<edge_status<<std::endl;
 			// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 			curEdge = (add_edge(new_node, node, composite_map)).first;
-			weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();	
-		
-
-
-
-
-			for(boost::tie(vi,viend) = vertices(composite_map);vi!=viend; ++vi)
-			{	
-				// std::cout<<"Composite Map nodes Iteration: "<<stateMap[*vi]<<std::endl;
-				if(indexMap[(*vi)]!=indexMap[new_node] && indexMap[(*vi)]!=indexMap[node])
-				{
-					Eigen::VectorXd left_V(dim);
-					Eigen::VectorXd right_V(dim);
-
-					left_V << stateMap[*vi].segment(0,dim);
-					right_V << stateMap[*vi].segment(dim,dim);
-					// std::cout<<"Iteration: ";
-					// std::cout<<"IF to continue: ";
-					// std::cin.get();
-
-					// std::cout<<"Left_V: "<<left_V<<std::endl;
-
-					if(left_V.isApprox(adjacent_left_config))
-					{
-						// std::cout<<"Left continue: ";
-						// std::cin.get();
-						Vertex right_vertex_U = rightConfigToNodeMap[right_V];
-						Vertex right_vertex_V = rightConfigToNodeMap[right_config];
-
-						bool edge_exists = edge(right_vertex_U, right_vertex_V, right_map).second;
-						
-						if(edge_exists)
-						{
-							Edge curEdge;
-							curEdge = (add_edge(*vi, configToNodeMap[adjacent_composite_config], composite_map)).first;
-							weightMap[curEdge]=(stateMap[*vi]-adjacent_composite_config).norm();			
-						}					left_V << stateMap[*vi].segment(0,dim);
-
-					}
-					else if (right_V.isApprox(right_config))
-					{
-			// 			//check if edge exists between left_V and adjacent_left_config in left_map
-			// 			//add edge
-						// std::cout<<"Right to continue: ";
-						// std::cout<<leftConfigToNodeMap[left_V]<<" "<<leftConfigToNodeMap[adjacent_left_config]<<std::endl;
-						// std::cin.get();
-						Vertex left_vertex_U = leftConfigToNodeMap[left_V];
-						Vertex left_vertex_V = leftConfigToNodeMap[adjacent_left_config];
-						bool edge_exists = edge(left_vertex_U, left_vertex_V, left_map).second;
-
-						if(edge_exists)
-						{
-
-							Edge curEdge;
-							bool edge_stat = edge(*vi, configToNodeMap[adjacent_composite_config], composite_map).second;
-							// std::cout<<"Edge Status: "<<edge_stat<<std::endl;
-							// std::cout<<composite_map[*vi].vertex_index<<" "<<configToNodeMap[adjacent_composite_config]<<std::endl;
-							curEdge = (add_edge(*vi, configToNodeMap[adjacent_composite_config], composite_map)).first;
-							weightMap[curEdge]=(stateMap[*vi]-adjacent_composite_config).norm();
-
-	
-						}		
-
-					}
-					// std::cout<<"Iteration: ";
-					// std::cout<<"CLOSE to continue: ";
-				}
-			}
-
+			weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
 			neighbors.push_back(new_node);
 		}
 
 		// std::cout<<"Middle of getNeighborsImplicitCPG"<<std::endl;
 		// std::cin.get();
-
-
-
 		//Adding Edges of right Map!
 		for (boost::tie(ai, aiEnd) = adjacent_vertices(right_map_node, right_map); ai != aiEnd; ++ai) 
 		{
@@ -303,8 +269,20 @@ public:
 
 			if(configToNodeMap.count(adjacent_composite_config))
 			{
+				Vertex new_node = configToNodeMap[adjacent_composite_config];
 				// std::cout<<"Already Exists!! "<<indexMap[configToNodeMap[adjacent_composite_config]];
-				neighbors.push_back(configToNodeMap[adjacent_composite_config]);
+				bool edge_status = edge(new_node, node, composite_map).second;
+				// std::cout<<"Edge Status: "<<edge_status<<std::endl;
+				if(!edge_status)
+				{
+					Edge curEdge;
+					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
+					curEdge = (add_edge(new_node, node, composite_map)).first;
+					weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+				}
+
+				
+				neighbors.push_back(new_node);
 				continue;
 			}
 
@@ -318,49 +296,6 @@ public:
 			Edge curEdge;
 			curEdge = (add_edge(new_node, node, composite_map)).first;
 			weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
-
-			for(boost::tie(vi,viend) = vertices(composite_map);vi!=viend; ++vi)
-			{
-				if(*vi!=new_node)
-				{
-					Eigen::VectorXd left_V(dim);
-					Eigen::VectorXd right_V(dim);
-
-					left_V << stateMap[*vi].segment(0,dim);
-					right_V << stateMap[*vi].segment(dim,dim);
-
-					if(right_V.isApprox(adjacent_right_config))
-					{
-						//check if edge exists between left_V and left_config in left_map
-						//add edge
-						Vertex left_vertex_U = leftConfigToNodeMap[left_V];
-						Vertex left_vertex_V = leftConfigToNodeMap[left_config];
-						bool edge_exists = edge(left_vertex_U, left_vertex_V, left_map).second;
-						
-						if(edge_exists)
-						{
-							Edge curEdge;
-							curEdge = (add_edge(*vi, configToNodeMap[adjacent_composite_config], composite_map)).first;
-							weightMap[curEdge]=(stateMap[*vi]-adjacent_composite_config).norm();			
-						}
-					}
-					else if (left_V.isApprox(left_config))
-					{
-						//check if edge exists between right_V and adjacent_right_config in right_map
-						//add edge
-						Vertex right_vertex_U = rightConfigToNodeMap[right_V];
-						Vertex right_vertex_V = rightConfigToNodeMap[adjacent_right_config];
-						bool edge_exists = edge(right_vertex_U, right_vertex_V, right_map).second;
-						
-						if(edge_exists)
-						{
-							Edge curEdge;
-							curEdge = (add_edge(*vi, configToNodeMap[adjacent_composite_config], composite_map)).first;
-							weightMap[curEdge]=(stateMap[*vi]-adjacent_composite_config).norm();			
-						}
-					}
-				}
-			}
 			neighbors.push_back(new_node);
 		}
 		// std::cout<<"Out of getNeighborsImplicitCPG"<<std::endl;
