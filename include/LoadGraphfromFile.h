@@ -40,7 +40,21 @@ public:
 
 inline std::string get(const RoadmapFromFilePutStateMap& map, const RoadmapFromFilePutStateMap::key_type &k)
 {
-	abort();
+	// std::cout<<"IN ABORTED"<<std::endl;
+	// abort();
+	Eigen::VectorXd stateConfig(map.mDim);
+	stateConfig << map.mVPStateMap[k];
+	std::ostringstream ss;
+	for( size_t i=0; i<map.mDim;i++)
+	{
+		ss<<stateConfig[i];
+		ss<<" ";
+	}  
+    
+    std::string config_string = ss.str();
+
+    return config_string; 
+
 }
 
 inline void put(const RoadmapFromFilePutStateMap& map, const RoadmapFromFilePutStateMap::key_type& k, const std::string representation)
@@ -91,13 +105,28 @@ void display_graph(Graph herb_map)
 	VPIndexMap index_map = get(&VProp::vertex_index, herb_map);
 
   	for (boost::tie(vi, vend) = vertices(herb_map); vi != vend; ++vi) {
-  		std::cout << index_map[(*vi)] << std::endl;
+  		std::cout << index_map[(*vi)]<<std::endl;
+  		// std::cout<<" "<<"State: "<<herb_map[*vi].state<<std::endl ;
   	}
 
   	EdgeIter ei, ei_end;
 	for(boost::tie(ei,ei_end)=edges(herb_map);ei!=ei_end;++ei) {
 		std::cout<<"("<<index_map[source(*ei,herb_map)]<<","<<index_map[target(*ei,herb_map)]<<")"<<std::endl;
 	}
+}
+
+void write_graph(Graph &g, std::string filename, unsigned int dimensions)
+{
+	std::ofstream fp;
+	fp.open(filename.c_str());
+
+	boost::dynamic_properties dp;
+	dp.property("state", RoadmapFromFilePutStateMap(get(&VProp::state,g),dimensions));
+    
+    write_graphml(fp, g,get(&VProp::vertex_index, g), dp);
+
+
+	fp.close();
 }
 
 #endif
