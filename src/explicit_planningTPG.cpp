@@ -294,6 +294,7 @@ int main(int argc, char* argv[])
 		("dimensions,d", po::value<int>()->required(), "set number of Dimensions")
 		("left_graph,l",po::value<std::string>()->required(), " path to left graphml file")
 		("right_graph,r",po::value<std::string>()->required(), " path to right graphml file")
+		("degree,k", po::value<int>()->required(), "set approximate degree")
 	;
 
 	po::variables_map vm;
@@ -307,6 +308,7 @@ int main(int argc, char* argv[])
 	std::string left_filepath=vm["left_graph"].as<std::string>();
 	std::string right_filepath=vm["right_graph"].as<std::string>();
 	int dim = vm["dimensions"].as<int>();
+	int k = vm["degree"].as<int>();
 
 	Graph right_map;
 
@@ -352,7 +354,7 @@ int main(int argc, char* argv[])
 	right_goal_config << goal_config.segment(dim,dim);
 
 
-	int k=10;
+	// int k=10;
 
 	Vertex left_start,left_end;
 	Vertex right_start, right_end;
@@ -375,7 +377,7 @@ int main(int argc, char* argv[])
 
 	TensorPG tpg;
 	tpg.explicitTPG(left_map,dim,right_map,dim,herb_map);
-	display_graph(herb_map);
+	// display_graph(herb_map);
 
 	Vertex start,end;
 	start = tpg.configToNodeTPG(start_config);
@@ -409,8 +411,18 @@ int main(int argc, char* argv[])
 
 		std::cout<< "[INFO]: Search "<<numSearches <<std::endl;
 		std::vector<Vertex> shortestPath = a.computeShortestPath(herb_map,pathcost);
-		for(Vertex nodes: shortestPath )
-			std::cout<<index_map[nodes]<<" ";
+		// for(Vertex nodes: shortestPath )
+		// 	std::cout<<index_map[nodes]<<" ";
+
+		// std::cout<<std::endl<<" Path is of length:"<<pathcost<<std::endl;
+
+		// for(Vertex nodes: shortestPath )
+		// {
+		// 	std::cout<<"State:";
+		// 	for(int num =0; num<14;num++)
+		// 		std::cout<<stateMap[nodes](num)<<" ";
+		// 	std::cout<<std::endl;
+		// }
 		if( shortestPath.size()==0)
 		{
 			std::cout << "" <<std::endl;
@@ -436,9 +448,9 @@ int main(int argc, char* argv[])
 
 				edgeEvalMap[curEdge] = true;
 				// bool col= checker.getCollisionStatus(herb_map[curU].state ,herb_map[curV].state);
-				// bool col = checker.getCollisionStatus(stateMap[curU],stateMap[curV]);
+				bool col = checker.getCollisionStatus(stateMap[curU],stateMap[curV]);
 
-	   			bool col = false;
+	   			// bool col = false;
 				std::cout<<"Edge between: "<<index_map[curU]<<" and "<<index_map[curV]<<" Col: "<<col;
 				if(col)
 				{
@@ -469,10 +481,13 @@ int main(int argc, char* argv[])
 				std::cout<<index_map[nodes]<<" ";
 			}
 
-			for(Vertex nodes: shortestPath )
-			{
-				std::cout<<"State:"<<stateMap[nodes]<<std::endl;
-			}
+			// for(Vertex nodes: shortestPath )
+			// {
+			// 	std::cout<<"State:";
+			// 	for(int num =0; num<14;num++)
+			// 		std::cout<<stateMap[nodes](num)<<" ";
+			// 	std::cout<<std::endl;
+			// }
 			std::cout<<std::endl<<"Input [ENTER] to execute path: ";
 			std::cin.get();
 
@@ -481,7 +496,7 @@ int main(int argc, char* argv[])
 			for(auto vi=shortestPath.begin(); vi!=shortestPath.end();vi++)
 				configs.push_back(herb_map[*vi].state);
 
-			checker.executePathCPG(configs);
+			checker.executePathTPG(configs);
 			std::cout<<std::endl<<"Input [ENTER] to exit: ";
 			std::cin.get();
 			break;

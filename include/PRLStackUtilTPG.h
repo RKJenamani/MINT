@@ -351,7 +351,7 @@ public:
 		// std::cout << "[INFO]: Done Executing!" << std::endl;
 	}
 
-	void executePathCPG( std::vector<Eigen::VectorXd> & configs) 
+	void executePathTPG( std::vector<Eigen::VectorXd> & configs) 
 	{
 		
 		char *argv[] = { "long", "live", "HERB" };
