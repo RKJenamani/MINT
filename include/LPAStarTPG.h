@@ -148,7 +148,7 @@ class LPAStarTPG {
 
 		// std::cout<<"IN getNeighbors "<<std::endl;
 		std::vector <Vertex> neighbors;
-		neighbors = tpg.getNeighborsImplicitTPG(v, g, left_map, right_map);
+		neighbors = tpg.getNeighborsImplicitTPG(v, g, left_map, right_map, g[mGoalNode].state);
 		// std::cout<<"Neighbours of "<<index_map[v]<<" are: ";
 		for(auto i=neighbors.begin();i!=neighbors.end();++i)
 		{

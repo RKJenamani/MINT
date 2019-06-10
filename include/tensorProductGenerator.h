@@ -20,6 +20,8 @@
 
 #include "BGLDefinitions.h"
 
+#define PAUSE_PENALTY 1 
+
 using namespace BGL_DEFINITIONS;
 
 
@@ -89,7 +91,8 @@ public:
 	}
 	
 
-	void explicitTPG(Graph & g1, int dim1, Graph &g2, int dim2, Graph &new_map)
+	void explicitTPG(Graph & g1, int dim1, Graph &g2, int dim2, Graph &new_map, 
+		Eigen::VectorXd left_goal_config, Eigen::VectorXd right_goal_config)
 	{
 		std::cout<<"In explicit: "<<std::endl;
 		// std::map<Vector14d, Vertex> configToNodeMap;
@@ -128,7 +131,7 @@ public:
 		size_t num_of_edges=0;
 		for(boost::tie(ei1,eiend1)=edges(g1);ei1!=eiend1;++ei1)
 		{
-			std::cout<<num_of_edges++<<std::endl;
+			// std::cout<<num_of_edges++<<std::endl;
 			Vertex u_1=source(*ei1,g1);
 			Vertex v_1=target(*ei1,g1);
 
@@ -147,21 +150,81 @@ public:
 
 				// std::cout<< configToNodeMap[new_config_source];
 				curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
-				newWeightMap[curEdge]=(new_config_source-new_config_target).norm();
+				newWeightMap[curEdge]=(new_config_source.segment(0,dim1)-new_config_target.segment(0,dim1)).norm()+(new_config_source.segment(dim1,dim2)-new_config_target.segment(dim1,dim2)).norm();
 
 				new_config_source << g1[u_1].state , g2[v_2].state;
 				new_config_target << g1[v_1].state , g2[u_2].state;
 
 				// std::cout<< configToNodeMap[new_config_source];
 				curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
-				newWeightMap[curEdge]=(new_config_source-new_config_target).norm();			
+				newWeightMap[curEdge]=(new_config_source.segment(0,dim1)-new_config_target.segment(0,dim1)).norm()+(new_config_source.segment(dim1,dim2)-new_config_target.segment(dim1,dim2)).norm();			
+			}
+		}
+
+		/// adding edges of cartesian product graphs
+
+		for(boost::tie(ei1,eiend1)=edges(g1);ei1!=eiend1;++ei1)
+		{
+			Vertex u=source(*ei1,g1);
+			Vertex v=target(*ei1,g1);
+
+			for (boost::tie(vi2, viend2) = vertices(g2); vi2 != viend2; ++vi2)
+			{
+				Eigen::VectorXd new_config_source(dim1+dim2);
+				Eigen::VectorXd new_config_target(dim1+dim2);
+				
+				new_config_source << g1[u].state , g2[*vi2].state;
+				new_config_target << g1[v].state , g2[*vi2].state;
+
+				Edge curEdge;
+
+				if(left_goal_config==new_config_source.segment(0,dim1) || left_goal_config==new_config_target.segment(0,dim1)
+					|| right_goal_config==new_config_source.segment(dim1,dim2) || right_goal_config==new_config_target.segment(dim1,dim2))
+				{
+					// std::cout<< configToNodeMap[new_config_source];
+					curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
+					newWeightMap[curEdge]=(new_config_source-new_config_target).norm();			
+				}
+				else
+				{
+					// std::cout<< configToNodeMap[new_config_source];
+					curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
+					newWeightMap[curEdge]=(new_config_source-new_config_target).norm() + PAUSE_PENALTY ;	
+				}
+			}
+		}
+		for(boost::tie(ei2,eiend2)=edges(g2);ei2!=eiend2;++ei2)
+		{
+			Vertex u=source(*ei2,g2);
+			Vertex v=target(*ei2,g2);
+
+			for (boost::tie(vi1, viend1) = vertices(g1); vi1 != viend1; ++vi1)
+			{
+				Eigen::VectorXd new_config_source(dim1+dim2);
+				Eigen::VectorXd new_config_target(dim1+dim2);
+				
+				new_config_source << g1[*vi1].state , g2[u].state;
+				new_config_target << g1[*vi1].state , g2[v].state;
+
+				Edge curEdge;
+
+				if(left_goal_config==new_config_source.segment(0,dim1) || left_goal_config==new_config_target.segment(0,dim1)
+					|| right_goal_config==new_config_source.segment(dim1,dim2) || right_goal_config==new_config_target.segment(dim1,dim2))
+				{
+					curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
+					newWeightMap[curEdge]=(new_config_source-new_config_target).norm();	
+				}
+				else
+				{
+					curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
+					newWeightMap[curEdge]=(new_config_source-new_config_target).norm()+ PAUSE_PENALTY;					
+				}		
 			}
 		}
 	}
 
-	std::vector<Vertex> getNeighborsImplicitTPG(Vertex &node, Graph &composite_map, Graph &left_map, Graph &right_map) 
-		//returns neighbors of node of composite_map using left_map and right_map and adds new nodes to composite_map
-		//LPAStar map values to be set outside, called from LPAStar get Neighbours
+	std::vector<Vertex> getNeighborsImplicitTPG(Vertex &node, Graph &composite_map, Graph &left_map, Graph &right_map, 
+		Eigen::VectorXd goal_config)
 	{
 		// std::cout<<"In getNeighborsImplicitCPG"<<std::endl;
 
@@ -191,6 +254,11 @@ public:
 
 		Eigen::VectorXd composite_config = stateMap[node];
 		int dim = (composite_config.size()/2);
+
+		Eigen::VectorXd left_goal_config = goal_config.segment(0,dim);
+		Eigen::VectorXd right_goal_config = goal_config.segment(dim,dim);
+
+
 		Eigen::VectorXd left_config = composite_config.segment(0,dim);
 		Eigen::VectorXd right_config = composite_config.segment(dim,dim);
 
@@ -202,7 +270,7 @@ public:
 
 		// std::cout<<"Middle of getNeighborsImplicitCPG"<<std::endl;
 
-		//Adding Edges of Left Map!!
+		//Adding Edges of tensor Map!!
 		for (boost::tie(ai_l, aiend_l) = adjacent_vertices(left_map_node, left_map); ai_l != aiend_l; ++ai_l) 
 		{
 			for(boost::tie(ai_r,aiend_r)=adjacent_vertices(right_map_node,right_map);ai_r!=aiend_r; ++ai_r)
@@ -228,7 +296,7 @@ public:
 						Edge curEdge;
 						// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 						curEdge = (add_edge(new_node, node, composite_map)).first;
-						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+						weightMap[curEdge]=(stateMap[new_node].segment(0,dim)-stateMap[node].segment(0,dim)).norm()+(stateMap[new_node].segment(dim,dim)-stateMap[node].segment(dim,dim)).norm();
 					}
 					neighbors.push_back(new_node);
 					continue;
@@ -245,10 +313,139 @@ public:
 				// std::cout<<"Edge Status: "<<edge_status<<std::endl;
 				// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 				curEdge = (add_edge(new_node, node, composite_map)).first;
-				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+				weightMap[curEdge]=(stateMap[new_node].segment(0,dim)-stateMap[node].segment(0,dim)).norm()+(stateMap[new_node].segment(dim,dim)-stateMap[node].segment(dim,dim)).norm();
 				neighbors.push_back(new_node);
 			}
 		}
+
+
+		//Adding Edges of Left Map!!
+		for (boost::tie(ai, aiend) = adjacent_vertices(left_map_node, left_map); ai != aiend; ++ai) 
+		{
+			// std::cout<<"LEFT! "<<std::endl;
+			Vertex curNeighbor = *ai;
+			Eigen::VectorXd adjacent_left_config = left_map[*ai].state;
+			Eigen::VectorXd adjacent_composite_config(dim+dim);
+			adjacent_composite_config << adjacent_left_config , right_config ;
+
+			// std::cout<<"Adjacent composite config state: "<<adjacent_composite_config<<std::endl;
+
+			if(configToNodeMap.count(adjacent_composite_config))
+			{
+				// std::cin.get();
+				Vertex new_node = configToNodeMap[adjacent_composite_config];
+				// std::cout<<"Already Exists!! "<<indexMap[configToNodeMap[adjacent_composite_config]];
+				bool edge_status = edge(new_node, node, composite_map).second;
+				// std::cout<<"Edge Status: "<<edge_status<<std::endl;
+				if(!edge_status)
+				{
+					Edge curEdge;
+					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
+					curEdge = (add_edge(new_node, node, composite_map)).first;
+
+					if(left_goal_config==stateMap[new_node].segment(0,dim) || left_goal_config==stateMap[node].segment(0,dim)
+					|| right_goal_config==stateMap[node].segment(dim,dim))
+					{
+						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+					}
+					else
+					{
+						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm() + PAUSE_PENALTY;
+					}
+				}
+				neighbors.push_back(new_node);
+				continue;
+			}
+
+			Vertex new_node;
+			new_node = add_vertex(composite_map);
+			stateMap[new_node] = adjacent_composite_config;
+			indexMap[new_node] = size++;
+			configToNodeMap[adjacent_composite_config]=new_node;
+
+			Edge curEdge;
+			// bool edge_status = edge(new_node, node, composite_map).second;
+			// std::cout<<"Edge Status: "<<edge_status<<std::endl;
+			// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
+			curEdge = (add_edge(new_node, node, composite_map)).first;
+
+			if(left_goal_config==stateMap[new_node].segment(0,dim) || left_goal_config==stateMap[node].segment(0,dim)
+					|| right_goal_config==stateMap[node].segment(dim,dim))
+			{
+				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+			}
+			else
+			{
+				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm()+PAUSE_PENALTY;
+			}
+			neighbors.push_back(new_node);
+		}
+
+		// std::cout<<"Middle of getNeighborsImplicitCPG"<<std::endl;
+		// std::cin.get();
+		//Adding Edges of right Map!
+		for (boost::tie(ai, aiend) = adjacent_vertices(right_map_node, right_map); ai != aiend; ++ai) 
+		{
+			// std::cout<<"RIGHT!!"<<std::endl;
+			// std::cout<<"Size: "<<size<<std::endl;
+			Vertex curNeighbor = *ai;
+			Eigen::VectorXd adjacent_right_config = right_map[*ai].state;
+			Eigen::VectorXd adjacent_composite_config(dim+dim);
+			adjacent_composite_config << left_config, adjacent_right_config;
+
+			if(configToNodeMap.count(adjacent_composite_config))
+			{
+				Vertex new_node = configToNodeMap[adjacent_composite_config];
+				// std::cout<<"Already Exists!! "<<indexMap[configToNodeMap[adjacent_composite_config]];
+				bool edge_status = edge(new_node, node, composite_map).second;
+				// std::cout<<"Edge Status: "<<edge_status<<std::endl;
+				if(!edge_status)
+				{
+					Edge curEdge;
+					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
+					curEdge = (add_edge(new_node, node, composite_map)).first;
+
+					if(left_goal_config==stateMap[node].segment(0,dim) || right_goal_config==stateMap[node].segment(dim,dim)
+					|| right_goal_config==stateMap[new_node].segment(dim,dim))
+					{
+						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+					}
+					else
+					{
+						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm() + PAUSE_PENALTY;
+					}
+				}
+
+				
+				neighbors.push_back(new_node);
+				continue;
+			}
+
+			Vertex new_node;
+			new_node = add_vertex(composite_map);
+			stateMap[new_node] = adjacent_composite_config;
+			indexMap[new_node] = size++;
+
+			configToNodeMap[adjacent_composite_config]=new_node;
+
+			Edge curEdge;
+			curEdge = (add_edge(new_node, node, composite_map)).first;
+
+			if(left_goal_config==stateMap[node].segment(0,dim) || right_goal_config==stateMap[node].segment(dim,dim)
+			|| right_goal_config==stateMap[new_node].segment(dim,dim))
+			{
+				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
+			}
+			else
+			{
+				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm() + PAUSE_PENALTY;
+			}
+			neighbors.push_back(new_node);
+		}
+		// std::cout<<"Out of getNeighborsImplicitCPG"<<std::endl;
+
+		// std::cout<<"Size: "<<size<<std::endl;
+
 		return neighbors;
 
 	}

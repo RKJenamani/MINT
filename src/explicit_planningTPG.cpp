@@ -376,7 +376,7 @@ int main(int argc, char* argv[])
 	Graph herb_map((i+2)*(i+2));
 
 	TensorPG tpg;
-	tpg.explicitTPG(left_map,dim,right_map,dim,herb_map);
+	tpg.explicitTPG(left_map,dim,right_map,dim,herb_map, left_goal_config, right_goal_config);
 	// display_graph(herb_map);
 
 	Vertex start,end;
