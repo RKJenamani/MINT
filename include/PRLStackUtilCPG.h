@@ -203,7 +203,7 @@ public:
 		{
 			const std::string objectURDFUri("package://pr_assets/data/furniture/bookcase.urdf");
 			objectPose = Eigen::Isometry3d::Identity();
-			objectPose.translation() = Eigen::Vector3d(-0.0, 0.75, 0);
+			objectPose.translation() = Eigen::Vector3d(-0.0, -1.25, 0);
 			Eigen::Matrix3d rot;
 			rot = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ())
 						* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY())
@@ -219,7 +219,7 @@ public:
 		{
 			const std::string objectURDFUri("package://pr_assets/data/objects/can.urdf");
 			objectPose = Eigen::Isometry3d::Identity();
-			objectPose.translation() = Eigen::Vector3d(1.0, -0.3, 0.7);
+			objectPose.translation() = Eigen::Vector3d(1.0, 0.3, 0.7);
 			Eigen::Matrix3d rot;
 			rot = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ())
 						* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY())
@@ -355,7 +355,10 @@ public:
 		auto target_state = mRightArmSpace->createState();
 		mRightArmSpace->convertPositionsToState(target_config, target_state);
 
-		int qCount = 10;
+		double col_resolution = 0.05;
+		int qCount = (source_config-target_config).norm()/col_resolution;
+		if(qCount<2)
+			qCount=2;
 		double step = 1.0/qCount;
 		auto test_state = mRightArmSpace->createState();
 
@@ -379,7 +382,10 @@ public:
 		auto target_state = mLeftArmSpace->createState();
 		mLeftArmSpace->convertPositionsToState(target_config, target_state);
 
-		int qCount = 10;
+		double col_resolution = 0.05;
+		int qCount = (source_config-target_config).norm()/col_resolution;
+		if(qCount<2)
+			qCount=2;
 		double step = 1.0/qCount;
 		auto test_state = mLeftArmSpace->createState();
 

@@ -178,8 +178,7 @@ public:
 
 				Edge curEdge;
 
-				if(left_goal_config==new_config_source.segment(0,dim1) || left_goal_config==new_config_target.segment(0,dim1)
-					|| right_goal_config==new_config_source.segment(dim1,dim2) || right_goal_config==new_config_target.segment(dim1,dim2))
+				if(right_goal_config.isApprox(g2[*vi2].state))
 				{
 					// std::cout<< configToNodeMap[new_config_source];
 					curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
@@ -208,8 +207,7 @@ public:
 
 				Edge curEdge;
 
-				if(left_goal_config==new_config_source.segment(0,dim1) || left_goal_config==new_config_target.segment(0,dim1)
-					|| right_goal_config==new_config_source.segment(dim1,dim2) || right_goal_config==new_config_target.segment(dim1,dim2))
+				if(left_goal_config.isApprox(g1[*vi1].state))
 				{
 					curEdge = (add_edge(configToNodeMap[new_config_source], configToNodeMap[new_config_target], new_map)).first;
 					newWeightMap[curEdge]=(new_config_source-new_config_target).norm();	
@@ -343,8 +341,7 @@ public:
 					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 					curEdge = (add_edge(new_node, node, composite_map)).first;
 
-					if(left_goal_config==stateMap[new_node].segment(0,dim) || left_goal_config==stateMap[node].segment(0,dim)
-					|| right_goal_config==stateMap[node].segment(dim,dim))
+					if(right_goal_config.isApprox(stateMap[node].segment(dim,dim)))
 					{
 						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
 					}
@@ -369,8 +366,7 @@ public:
 			// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 			curEdge = (add_edge(new_node, node, composite_map)).first;
 
-			if(left_goal_config==stateMap[new_node].segment(0,dim) || left_goal_config==stateMap[node].segment(0,dim)
-					|| right_goal_config==stateMap[node].segment(dim,dim))
+			if(right_goal_config.isApprox(stateMap[node].segment(dim,dim)))
 			{
 				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
 			}
@@ -405,8 +401,7 @@ public:
 					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 					curEdge = (add_edge(new_node, node, composite_map)).first;
 
-					if(left_goal_config==stateMap[node].segment(0,dim) || right_goal_config==stateMap[node].segment(dim,dim)
-					|| right_goal_config==stateMap[new_node].segment(dim,dim))
+					if(left_goal_config.isApprox(stateMap[node].segment(0,dim)))
 					{
 						weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
 					}
@@ -431,8 +426,7 @@ public:
 			Edge curEdge;
 			curEdge = (add_edge(new_node, node, composite_map)).first;
 
-			if(left_goal_config==stateMap[node].segment(0,dim) || right_goal_config==stateMap[node].segment(dim,dim)
-			|| right_goal_config==stateMap[new_node].segment(dim,dim))
+			if(left_goal_config.isApprox(stateMap[node].segment(0,dim)))
 			{
 				weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
 			}

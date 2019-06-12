@@ -203,7 +203,7 @@ public:
 		{
 			const std::string objectURDFUri("package://pr_assets/data/furniture/bookcase.urdf");
 			objectPose = Eigen::Isometry3d::Identity();
-			objectPose.translation() = Eigen::Vector3d(-0.0, 0.75, 0);
+			objectPose.translation() = Eigen::Vector3d(-0.0, -1.25, 0);
 			Eigen::Matrix3d rot;
 			rot = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ())
 						* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY())
@@ -219,7 +219,7 @@ public:
 		{
 			const std::string objectURDFUri("package://pr_assets/data/objects/can.urdf");
 			objectPose = Eigen::Isometry3d::Identity();
-			objectPose.translation() = Eigen::Vector3d(1.0, -0.3, 0.7);
+			objectPose.translation() = Eigen::Vector3d(1.0, 0.3, 0.7);
 			Eigen::Matrix3d rot;
 			rot = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ())
 						* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY())
@@ -269,18 +269,28 @@ public:
 		auto right_target_state = mRightArmSpace->createState();
 		mRightArmSpace->convertPositionsToState(right_target, right_target_state);
 
-		int qCount = 10;
-		double step = 1.0/qCount;
+		double col_resolution = 0.05;
+
+		int left_qCount = (left_source-left_target).norm()/col_resolution;
+		if(left_qCount<10)
+			left_qCount=10;
+		double left_step = 1.0/left_qCount;
+
+		int right_qCount = (right_source-right_target).norm()/col_resolution;
+		if(right_qCount<10)
+			right_qCount=10;
+		double right_step = 1.0/right_qCount;
+
 		auto left_test_state = mLeftArmSpace->createState();
 		auto right_test_state = mRightArmSpace->createState();		
 
 		bool col =false;
 
-		for (double alpha = 0.0; alpha <= 1.0; alpha += step)
+		for (double alpha = 0.0; alpha <= 1.0; alpha += left_step)
 		{
 			mLeftInterpolator->interpolate(left_source_state, left_target_state, alpha, left_test_state);
 			mLeftArmSpace->setState((&(*mLeftArm)),left_test_state);
-			for (double beta = 0.0; beta <= 1.0; beta += step)
+			for (double beta = 0.0; beta <= 1.0; beta += right_step)
 			{
 				mRightInterpolator->interpolate(right_source_state, right_target_state, beta, right_test_state);
 				if (!mRightFullTestable->isSatisfied(right_test_state))
@@ -292,11 +302,11 @@ public:
 		//do the same with right {left {}} as checking of left testable for environment
 
 
-		for (double alpha = 0.0; alpha <= 1.0; alpha += step)
+		for (double alpha = 0.0; alpha <= 1.0; alpha += right_step)
 		{
 			mRightInterpolator->interpolate(right_source_state, right_target_state, alpha, right_test_state);
 			mLeftArmSpace->setState((&(*mRightArm)),right_test_state);
-			for (double beta = 0.0; beta <= 1.0; beta += step)
+			for (double beta = 0.0; beta <= 1.0; beta += left_step)
 			{
 				mLeftInterpolator->interpolate(left_source_state, left_target_state, alpha, left_test_state);
 				if (!mLeftFullTestable->isSatisfied(left_test_state))
