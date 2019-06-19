@@ -22,6 +22,9 @@
 #include <pr_tsr/can.hpp>
 #include <libherb/Herb.hpp>
 
+#include <aikido/constraint/Satisfied.hpp>
+using dart::dynamics::BodyNodePtr;
+
 namespace po = boost::program_options;
 
 using RobotPtr = std::shared_ptr<herb::Herb>;
@@ -74,7 +77,7 @@ public:
 
 	PRLStackUtilTPG()
 	{
-		waitForUser("Press [ENTER] to start constructor: ");
+		// waitForUser("Press [ENTER] to start constructor: ");
 		char *argv[] = { "long", "live", "HERB" };
 		int argc = 3;
 		std::cout << "Starting ROS node." << std::endl;
@@ -97,6 +100,14 @@ public:
 		Eigen::Isometry3d tablePose;
 		perceiveObject(nh,resourceRetriever,table,tablePose,"table");
 
+		SkeletonPtr pitcher;
+		Eigen::Isometry3d pitcherPose;
+		perceiveObject(nh,resourceRetriever,pitcher,pitcherPose,"pitcher");
+
+		SkeletonPtr roof;
+		Eigen::Isometry3d roofPose;
+		perceiveObject(nh,resourceRetriever,roof,roofPose,"roof");
+
 		// SkeletonPtr shelf;
 		// Eigen::Isometry3d shelfPose;
 		// perceiveObject(nh,resourceRetriever,shelf,shelfPose,"shelf");
@@ -106,6 +117,9 @@ public:
 		perceiveObject(nh,resourceRetriever,can,canPose,"can");
 
 		mObstacles.push_back(table);
+		
+		mObstacles.push_back(roof);
+		mObstacles.push_back(pitcher);
 		// mObstacles.push_back(shelf);
 		mObstacles.push_back(can);
 
@@ -161,6 +175,33 @@ public:
 	{
 	  std::cout << msg;
 	  std::cin.get();
+	}
+
+	BodyNodePtr getBodyNodeOrThrow(const SkeletonPtr& skeleton, const std::string& bodyNodeName)
+	{
+		auto bodyNode = skeleton->getBodyNode(bodyNodeName);
+		if (!bodyNode)
+		{
+			std::stringstream message;
+	    	message << "Bodynode [" << bodyNodeName << "] does not exist in skeleton.";
+	    	throw std::runtime_error(message.str());
+		}
+		return bodyNode;
+	}
+	
+	void moveArmTo(RobotPtr robot,const MetaSkeletonStateSpacePtr& armSpace,const MetaSkeletonPtr& armSkeleton,const Eigen::VectorXd& goalPos)
+	{
+		double planningTimeout{5.};
+		// No collision checking
+		auto testable = std::make_shared<aikido::constraint::Satisfied>(armSpace);
+		auto trajectory = robot->planToConfiguration(armSpace, armSkeleton, goalPos, nullptr, planningTimeout);
+		if (!trajectory)
+		{
+			throw std::runtime_error("Failed to find a solution");
+		}
+		// auto smoothTrajectory = robot.retimePath(armSkeleton, trajectory.get());
+		auto future = robot->executeTrajectory(std::move(trajectory));
+		future.wait();
 	}
 
 	const SkeletonPtr makeBodyFromURDF(const std::shared_ptr<aikido::io::CatkinResourceRetriever> resourceRetriever,
@@ -231,6 +272,34 @@ public:
 			mRobot->getWorld()->addSkeleton(object);
 			return true;
 		}
+		else if (name=="pitcher")
+		{
+			const std::string objectURDFUri("package://pr_assets/data/objects/rubbermaid_ice_guard_pitcher.urdf");
+			objectPose = Eigen::Isometry3d::Identity();
+			objectPose.translation() = Eigen::Vector3d(1.0, 0.0, 0)+Eigen::Vector3d(0.0, 0.0, 0.73);
+			object = makeBodyFromURDF(resourceRetriever, objectURDFUri, objectPose);
+			// Add all objects to World
+			mRobot->getWorld()->addSkeleton(object);
+			return true;
+		}
+		else if (name=="roof")
+		{
+			const std::string objectURDFUri("package://pr_assets/data/furniture/uw_demo_table.urdf");
+			// Poses for table
+			objectPose = Eigen::Isometry3d::Identity();
+			// objectPose.translation() = Eigen::Vector3d(1.0, 0.4, 0);
+			objectPose.translation() = Eigen::Vector3d(1.0, 0.0, 0) + Eigen::Vector3d(0.0, 0.0, 2.3);;
+			Eigen::Matrix3d rot;
+			rot = Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ())
+        			* Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitY())
+        			* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX());
+			objectPose.linear() = rot;
+			// Load table
+			object = makeBodyFromURDF(resourceRetriever, objectURDFUri, objectPose);
+			// Add all objects to World
+			mRobot->getWorld()->addSkeleton(object);
+			return true;
+		}
 		else
 			return false;
 	}
@@ -274,44 +343,39 @@ public:
 		int left_qCount = (left_source-left_target).norm()/col_resolution;
 		if(left_qCount<10)
 			left_qCount=10;
-		double left_step = 1.0/left_qCount;
 
 		int right_qCount = (right_source-right_target).norm()/col_resolution;
 		if(right_qCount<10)
 			right_qCount=10;
-		double right_step = 1.0/right_qCount;
+
+		int qCount=std::max(left_qCount,right_qCount);
+		double step = 1.0/qCount;
 
 		auto left_test_state = mLeftArmSpace->createState();
 		auto right_test_state = mRightArmSpace->createState();		
 
 		bool col =false;
 
-		for (double alpha = 0.0; alpha <= 1.0; alpha += left_step)
+		for (double alpha = 0.0; alpha <= 1.0; alpha += step)
 		{
 			mLeftInterpolator->interpolate(left_source_state, left_target_state, alpha, left_test_state);
 			mLeftArmSpace->setState((&(*mLeftArm)),left_test_state);
-			for (double beta = 0.0; beta <= 1.0; beta += right_step)
-			{
-				mRightInterpolator->interpolate(right_source_state, right_target_state, beta, right_test_state);
-				if (!mRightFullTestable->isSatisfied(right_test_state))
+			mRightInterpolator->interpolate(right_source_state, right_target_state, alpha, right_test_state);
+			if (!mRightFullTestable->isSatisfied(right_test_state))
 					col=true;
-			}
 		}
 
 
 		//do the same with right {left {}} as checking of left testable for environment
 
 
-		for (double alpha = 0.0; alpha <= 1.0; alpha += right_step)
+		for (double alpha = 0.0; alpha <= 1.0; alpha += step)
 		{
 			mRightInterpolator->interpolate(right_source_state, right_target_state, alpha, right_test_state);
 			mLeftArmSpace->setState((&(*mRightArm)),right_test_state);
-			for (double beta = 0.0; beta <= 1.0; beta += left_step)
-			{
-				mLeftInterpolator->interpolate(left_source_state, left_target_state, alpha, left_test_state);
-				if (!mLeftFullTestable->isSatisfied(left_test_state))
-					col=true;
-			}
+			mLeftInterpolator->interpolate(left_source_state, left_target_state, alpha, left_test_state);
+			if (!mLeftFullTestable->isSatisfied(left_test_state))
+				col=true;
 		}
 
 		return col;
@@ -359,6 +423,96 @@ public:
 		mRobot->executeTrajectory(std::move(timedTraj)).wait();
 
 		// std::cout << "[INFO]: Done Executing!" << std::endl;
+	}
+	void executeTogether( std::vector<Eigen::VectorXd> & configs)
+	{
+		bool herbReal = false;
+
+		int target = 1;
+		herbReal = false;
+  		char *argv[] = { "long", "live", "HERB" };
+		int argc = 3;
+		std::cout << "Starting ROS node." << std::endl;
+		ros::init(argc, argv, "execute_viz");
+		ros::NodeHandle nh("execute");
+
+		const std::string baseFrameName("map");
+		const std::string topicName("dart_markers");
+
+
+		// aikido::planner::WorldPtr env(new aikido::planner::World("simple_trajectories"));
+		// // Load HERB either in simulation or real based on arguments
+		// ROS_INFO("Loading HERB.");
+		// herb::Herb robot(env, !herbReal);
+		// auto robotSkeleton = robot.getMetaSkeleton();
+
+		std::cout << "Starting viewer. Please subscribe to the '" << topicName
+					<< "' InteractiveMarker topic in RViz." << std::endl;
+		aikido::rviz::WorldInteractiveMarkerViewer viewer(mEnv, topicName, baseFrameName);
+
+		viewer.setAutoUpdate(true);
+
+		size_t dim = (configs.at(0).size())/2;
+
+		Eigen::VectorXd lStart(dim);
+		lStart << configs.at(0).segment(0,dim);
+		mLeftArm->setPositions(lStart);
+
+		Eigen::VectorXd rStart(dim);
+	  	rStart << configs.at(0).segment(dim,dim);
+		mRightArm->setPositions(rStart);
+
+		waitForUser("Press [ENTER] to start: ");
+
+		// Create the space.
+		using dart::dynamics::Linkage;
+
+		// Get the names right.
+		std::stringstream wamBaseName;
+		wamBaseName << "herb_frame";
+
+		// Same as hand-base for HERB [offset from wam7 by FT sensor dimension]
+
+		std::stringstream righthandname;
+		righthandname << "/right/hand_base";
+		std::stringstream lefthandname;
+		lefthandname << "/left/hand_base";
+		auto mRobotSkeleton = mRobot->getRobotSkeleton();
+		auto armBase = getBodyNodeOrThrow(mRobotSkeleton, wamBaseName.str());
+		auto righthand = getBodyNodeOrThrow(mRobotSkeleton, righthandname.str());
+		auto lefthand = getBodyNodeOrThrow(mRobotSkeleton, lefthandname.str());
+		dart::dynamics::Linkage::Criteria::Target startTarget(armBase);
+		dart::dynamics::Linkage::Criteria::Target leftTarget(lefthand);
+		dart::dynamics::Linkage::Criteria::Target rightTarget(righthand);
+		std::vector<dart::dynamics::Linkage::Criteria::Target> targets;
+		targets.emplace_back(leftTarget);
+		targets.emplace_back(rightTarget);
+		dart::dynamics::Linkage::Criteria criteria;
+		criteria.mTargets = targets;
+		criteria.mStart = startTarget;
+		// Create the criteria to end.
+		auto arms = Linkage::create(criteria, "bimanual");
+		auto bimanualSpace = std::make_shared<MetaSkeletonStateSpace>(arms.get());
+		std::cout << bimanualSpace->getDimension() << std::endl;
+		auto names = bimanualSpace->getProperties().getDofNames();
+		for (int i = 0; i < names.size(); ++i)
+		std::cout << names[i] << std::endl;
+		waitForUser("Press [ENTER] to start execution: ");
+
+		Eigen::VectorXd bimanualGoal(14);
+
+		bimanualGoal << 3.14, -1.57, 0.00, 0.00, 0.00, 0.00, 0.00, 3.14, -1.57, 0.00, 0.00, 0.00, 0.00, 0.00;
+
+		for (int i = 1; i < configs.size(); i++)
+		{
+			Eigen::VectorXd bimanualGoal(14);
+			bimanualGoal << configs.at(i);
+			moveArmTo(mRobot, bimanualSpace, arms, bimanualGoal);
+		}
+
+		std::cout<<"FINISHED EXECUTION SUCCESSFULLY";
+		ros::shutdown();
+
 	}
 
 	void executePathTPG( std::vector<Eigen::VectorXd> & configs) 
