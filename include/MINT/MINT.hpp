@@ -65,12 +65,12 @@ public:
   /// Unordered set of graph vertices to track the lazy band.
   struct HashFunction
   {
-    std::size_t operator()(const Vertex& v) const
+    std::size_t operator()(const CompositeVertex& v) const
     {
       return v;
     }
   };
-  typedef std::unordered_set<Vertex, HashFunction> unorderedSet;
+  typedef std::unordered_set<CompositeVertex, HashFunction> unorderedSet;
 
   ///////////////////////////////////////////////////////////////////
 
@@ -97,10 +97,10 @@ public:
   double getCheckRadius() const;
 
   /// Get ID of start vertex.
-  Vertex getStartVertex() const;
+  CompositeVertex getStartVertex() const;
 
   /// Get ID of goal vertex.
-  Vertex getGoalVertex() const;
+  CompositeVertex getGoalVertex() const;
 
   /// Get the shortest path cost.
   double getBestPathCost() const;
@@ -145,10 +145,10 @@ private:
   const ompl::base::StateSpacePtr mSpace;
 
   /// The fixed roadmap over which the search is done.
-  Graph graph;
+  CompositeGraph graph;
 
   /// Roadmap
-  boost::shared_ptr<utils::RoadmapFromFile<Graph, VPStateMap, utils::StateWrapper, EPLengthMap, EPPriorMap>> roadmapPtr;
+  boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>> roadmapPtr;
 
   /// Path to the roadmap.
   std::string mRoadmapFileName;
@@ -192,15 +192,15 @@ private:
 
   // Planner helpers
   /// Source vertex.
-  Vertex mStartVertex;
+  CompositeVertex mStartVertex;
 
   /// Goal vertex.
-  Vertex mGoalVertex;
+  CompositeVertex mGoalVertex;
 
   /// Set of vertices to be rewired.
   unorderedSet mSetRewire;
 
-  /// Edge evaluation resolution manager.
+  /// CompositeEdge evaluation resolution manager.
   utils::BisectPerm mBisectPermObj;
 
   ///////////////////////////////////////////////////////////////////
@@ -212,35 +212,35 @@ private:
   /// along the edge using the resolution of the underlying space.
   /// This is called during problem setup.
   /// \param[in] e The edge ID to initialize with configurations
-  void initializeEdgePoints(const Edge& e);
+  void initializeEdgePoints(const CompositeEdge& e);
 
   /// Evaluate an edge to determine its collision status
   /// and assign it to the underlying property of the edge.
   /// \param[in] The edge ID to check for
   /// \return True if edge is valid
-  bool evaluateEdge(const Edge& e);
+  bool evaluateEdge(const CompositeEdge& e);
 
   /// Return the edge between the two vertices
   /// \param[in] source Source vertex
   /// \param[in] target Target vertex
-  Edge getEdge(Vertex u, Vertex v) const;
+  CompositeEdge getEdge(CompositeVertex u, CompositeVertex v) const;
 
   /// Returns g-value of vertex.
-  /// \param[in] vertex Vertex
-  double estimateCostToCome(Vertex vertex) const;
+  /// \param[in] vertex CompositeVertex
+  double estimateCostToCome(CompositeVertex vertex) const;
 
   /// Returns heursitic value of vertex.
-  /// \param[in] vertex Vertex
-  double heuristicFunction(Vertex vertex) const;
+  /// \param[in] vertex CompositeVertex
+  double heuristicFunction(CompositeVertex vertex) const;
 
   /// Returns f-value of vertex.
-  /// \param vertex Vertex
-  double estimateTotalCost(Vertex vertex) const;
+  /// \param vertex CompositeVertex
+  double estimateTotalCost(CompositeVertex vertex) const;
 
   /// Construct the solution.
   /// \param[in] start Start vertex
   /// \param[in] goal Goal vertex
-  ompl::base::PathPtr constructSolution(const Vertex& start, const Vertex& goal) const;
+  ompl::base::PathPtr constructSolution(const CompositeVertex& start, const CompositeVertex& goal) const;
 
 }; // class MINT
 
@@ -288,17 +288,17 @@ void MINT::setup()
 
   ompl::base::Planner::setup();
 
-  roadmapPtr = boost::shared_ptr<utils::RoadmapFromFile<Graph, VPStateMap, utils::StateWrapper, EPLengthMap, EPPriorMap>>
-                (new utils::RoadmapFromFile<Graph, VPStateMap, utils::StateWrapper, EPLengthMap, EPPriorMap>
+  roadmapPtr = boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>>
+                (new utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>
                 (mSpace, mRoadmapFileName));
 
   roadmapPtr->generate(graph,
-                       get(&VProp::state, graph),
-                       get(&EProp::length, graph),
-                       get(&EProp::prior, graph));
+                       get(&CompositeVProp::state, graph),
+                       get(&CompositeEProp::length, graph),
+                       get(&CompositeEProp::prior, graph));
 
   // Set default vertex values.
-  VertexIter vi, vi_end;
+  CompositeVertexIter vi, vi_end;
   for (boost::tie(vi, vi_end) = vertices(graph); vi != vi_end; ++vi)
   {
     graph[*vi].costToCome = std::numeric_limits<double>::infinity();
@@ -308,7 +308,7 @@ void MINT::setup()
   }
 
   // Set default edge values.
-  EdgeIter ei, ei_end;
+  CompositeEdgeIter ei, ei_end;
   for (boost::tie(ei, ei_end) = edges(graph); ei != ei_end; ++ei)
   {
     graph[*ei].isEvaluated = false;
@@ -322,7 +322,7 @@ void MINT::setup()
 void MINT::clear()
 {
   // Set default vertex values.
-  VertexIter vi, vi_end;
+  CompositeVertexIter vi, vi_end;
   for (boost::tie(vi, vi_end) = vertices(graph); vi != vi_end; ++vi)
   {
     graph[*vi].costToCome = std::numeric_limits<double>::infinity();
@@ -332,7 +332,7 @@ void MINT::clear()
   }
 
   // Set default edge values.
-  EdgeIter ei, ei_end;
+  CompositeEdgeIter ei, ei_end;
   for (boost::tie(ei, ei_end) = edges(graph); ei != ei_end; ++ei)
   {
     graph[*ei].isEvaluated = false;
@@ -391,7 +391,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
   graph[mGoalVertex].visited = false;
   graph[mGoalVertex].status = CollisionStatus::FREE;
 
-  VertexIter vi, vi_end;
+  CompositeVertexIter vi, vi_end;
   for (boost::tie(vi, vi_end) = vertices(graph); vi != vi_end; ++vi)
   {
     double startDist = mSpace->distance(graph[*vi].state->state, startState->state);
@@ -401,7 +401,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
     {
       if(mStartVertex == *vi)
         continue;
-      std::pair<Edge,bool> newEdge = boost::add_edge(mStartVertex, *vi, graph);
+      std::pair<CompositeEdge,bool> newEdge = boost::add_edge(mStartVertex, *vi, graph);
       graph[newEdge.first].length = startDist;
       graph[newEdge.first].prior = 1.0;
       graph[newEdge.first].isEvaluated = false;
@@ -412,7 +412,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
     {
       if(mGoalVertex == *vi)
         continue;
-      std::pair<Edge,bool> newEdge = boost::add_edge(mGoalVertex, *vi, graph);
+      std::pair<CompositeEdge,bool> newEdge = boost::add_edge(mGoalVertex, *vi, graph);
       graph[newEdge.first].length = goalDist;
       graph[newEdge.first].prior = 1.0;
       graph[newEdge.first].isEvaluated = false;
@@ -425,7 +425,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondition & ptc)
 {
   // Priority Function: f-value
-  auto cmpFValue = [&](const Vertex& left, const Vertex& right)
+  auto cmpFValue = [&](const CompositeVertex& left, const CompositeVertex& right)
   {
     double estimateLeft = estimateTotalCost(left);
     double estimateRight = estimateTotalCost(right);
@@ -440,7 +440,7 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
       return false;
   };
 
-  std::set<Vertex, decltype(cmpFValue)> qUseful(cmpFValue);
+  std::set<CompositeVertex, decltype(cmpFValue)> qUseful(cmpFValue);
 
   bool solutionFound = false;
 
@@ -454,10 +454,10 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 
   // extendLazyBand(qExtend, qFrontier);
 
-  std::vector<Vertex> path;
+  std::vector<CompositeVertex> path;
   while(qUseful.size()!=0)
   {
-    Vertex vTop = *qUseful.begin();
+    CompositeVertex vTop = *qUseful.begin();
     qUseful.erase(qUseful.begin());
     if(vTop == mGoalVertex)
     {
@@ -465,12 +465,12 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
       solutionFound = true;
       break;      
     }
-    NeighborIter ai;
-    NeighborIter aiEnd;
+    CompositeNeighborIter ai;
+    CompositeNeighborIter aiEnd;
     for (tie(ai, aiEnd) = adjacent_vertices(vTop, graph); ai != aiEnd; ++ai) 
     {
-      Vertex successor = *ai;
-      Edge uv = getEdge(successor,vTop);
+      CompositeVertex successor = *ai;
+      CompositeEdge uv = getEdge(successor,vTop);
       if(evaluateEdge(uv))
       {
         double edgeLength = graph[uv].length;
@@ -541,12 +541,12 @@ double MINT::getCheckRadius() const
   return mCheckRadius;
 }
 
-Vertex MINT::getStartVertex() const
+CompositeVertex MINT::getStartVertex() const
 {
   return mStartVertex;
 }
 
-Vertex MINT::getGoalVertex() const
+CompositeVertex MINT::getGoalVertex() const
 {
   return mGoalVertex;
 }
@@ -577,12 +577,12 @@ double MINT::getSearchTime() const
 }
 
 // ===========================================================================================
-ompl::base::PathPtr MINT::constructSolution(const Vertex &start, const Vertex &goal) const
+ompl::base::PathPtr MINT::constructSolution(const CompositeVertex &start, const CompositeVertex &goal) const
 {
-  std::set<Vertex> seen;
+  std::set<CompositeVertex> seen;
 
   ompl::geometric::PathGeometric *path = new ompl::geometric::PathGeometric(si_);
-  Vertex v = goal;
+  CompositeVertex v = goal;
   while (v != start)
   {
     if (seen.find(v) != seen.end())
@@ -605,7 +605,7 @@ ompl::base::PathPtr MINT::constructSolution(const Vertex &start, const Vertex &g
 }
 
 // ===========================================================================================
-void MINT::initializeEdgePoints(const Edge& e)
+void MINT::initializeEdgePoints(const CompositeEdge& e)
 {
   auto startState = graph[source(e,graph)].state->state;
   auto endState = graph[target(e,graph)].state->state;
@@ -636,7 +636,7 @@ void MINT::initializeEdgePoints(const Edge& e)
 }
 
 // ===========================================================================================
-bool MINT::evaluateEdge(const Edge& e)
+bool MINT::evaluateEdge(const CompositeEdge& e)
 {
   // Log Time
   std::chrono::time_point<std::chrono::system_clock> startEvaluationTime{std::chrono::system_clock::now()};
@@ -650,8 +650,8 @@ bool MINT::evaluateEdge(const Edge& e)
 
   auto validityChecker = si_->getStateValidityChecker();
   
-  Vertex startVertex = source(e,graph);
-  Vertex endVertex   = target(e,graph);
+  CompositeVertex startVertex = source(e,graph);
+  CompositeVertex endVertex   = target(e,graph);
   auto startState = graph[startVertex].state->state;
   auto endState = graph[endVertex].state->state;
 
@@ -699,9 +699,9 @@ bool MINT::evaluateEdge(const Edge& e)
 }
 
 // ===========================================================================================
-Edge MINT::getEdge(Vertex u, Vertex v) const
+CompositeEdge MINT::getEdge(CompositeVertex u, CompositeVertex v) const
 {
-  Edge uv;
+  CompositeEdge uv;
   bool edgeExists;
   boost::tie(uv, edgeExists) = edge(u, v, graph);
 
@@ -709,18 +709,18 @@ Edge MINT::getEdge(Vertex u, Vertex v) const
 }
 
 // ===========================================================================================
-double MINT::estimateCostToCome(Vertex v) const
+double MINT::estimateCostToCome(CompositeVertex v) const
 {
   // return graph[v].costToCome + graph[v].lazyCostToCome;
   return graph[v].costToCome;
 }
 
-double MINT::heuristicFunction(Vertex v) const
+double MINT::heuristicFunction(CompositeVertex v) const
 {
   return mSpace->distance(graph[v].state->state, graph[mGoalVertex].state->state);
 }
 
-double MINT::estimateTotalCost(Vertex v) const
+double MINT::estimateTotalCost(CompositeVertex v) const
 {
   return estimateCostToCome(v) + heuristicFunction(v);
 }
