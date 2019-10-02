@@ -42,19 +42,22 @@ namespace BGL_DEFINITIONS {
     utils::StateWrapperPtr state;
 
     /// Cost-to-Come
-    double costToCome;
+    double costToCome = std::numeric_limits<double>::infinity();
 
     /// Heuristic value
-    double heuristic;
+    double heuristic = std::numeric_limits<double>::infinity();
 
     /// Parent
     std::size_t parent;
 
     /// Visited
-    bool visited;
+    bool visited = false;
 
     /// Collision status
-    CollisionStatus status;
+    CollisionStatus status = CollisionStatus::FREE;
+
+    /// Vertex Index
+    size_t vertex_index;
 
   }; // struct CompositeVProp
 
@@ -65,13 +68,13 @@ namespace BGL_DEFINITIONS {
     double length;
 
     /// Flag to check if edge is evaluated
-    bool isEvaluated;
+    bool isEvaluated = false;
 
     /// States embedded in an edge
     std::vector<utils::StateWrapperPtr> edgeStates;
 
     /// Collision status
-    CollisionStatus status;
+    CollisionStatus status = CollisionStatus::FREE;
 
     /// Prior over existence of edge
     double prior;
@@ -98,7 +101,7 @@ namespace BGL_DEFINITIONS {
   typedef boost::graph_traits<CompositeGraph>::adjacency_iterator CompositeNeighborIter;
 
   /// Map each vertex to a unique ID
-  typedef boost::property_map<CompositeGraph, boost::vertex_index_t CompositeVProp::*>::type CompositeVertexIndexMap;
+  typedef boost::property_map<CompositeGraph, size_t CompositeVProp::*>::type CompositeVPIndexMap;
 
   /// Map each vertex to the underlying state [read from the graphml file]
   typedef boost::property_map<CompositeGraph, utils::StateWrapperPtr CompositeVProp::*>::type CompositeVPStateMap;
@@ -123,19 +126,22 @@ namespace BGL_DEFINITIONS {
     Eigen::VectorXd state;
 
     /// Cost-to-Come
-    double costToCome;
+    double costToCome = std::numeric_limits<double>::infinity();
 
     /// Heuristic value
-    double heuristic;
+    double heuristic = std::numeric_limits<double>::infinity();
 
     /// Parent
     std::size_t parent;
 
     /// Visited
-    bool visited;
+    bool visited = false;
 
     /// Collision status
-    CollisionStatus status;
+    CollisionStatus status = CollisionStatus::FREE;
+
+    /// Vertex Index
+    size_t vertex_index;
 
   }; // struct VProp
 
@@ -146,10 +152,10 @@ namespace BGL_DEFINITIONS {
     double length;
 
     /// Flag to check if edge is evaluated
-    bool isEvaluated;
+    bool isEvaluated = false;
 
     /// Collision status
-    CollisionStatus status;
+    CollisionStatus status = CollisionStatus::FREE;
 
     /// Prior over existence of edge
     double prior;
@@ -176,7 +182,7 @@ namespace BGL_DEFINITIONS {
   typedef boost::graph_traits<Graph>::adjacency_iterator NeighborIter;
 
   /// Map each vertex to a unique ID
-  typedef boost::property_map<Graph, boost::vertex_index_t VProp::*>::type VertexIndexMap;
+  typedef boost::property_map<Graph, size_t VProp::*>::type VPIndexMap;
 
   /// Map each vertex to the underlying state [read from the graphml file]
   typedef boost::property_map<Graph, Eigen::VectorXd VProp::*>::type VPStateMap;
