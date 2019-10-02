@@ -179,7 +179,7 @@ namespace BGL_DEFINITIONS {
   typedef boost::property_map<Graph, boost::vertex_index_t VProp::*>::type VertexIndexMap;
 
   /// Map each vertex to the underlying state [read from the graphml file]
-  typedef boost::property_map<Graph, utils::StateWrapperPtr VProp::*>::type VPStateMap;
+  typedef boost::property_map<Graph, Eigen::VectorXd VProp::*>::type VPStateMap;
 
   /// Map each edge to a unique ID
   typedef boost::property_map<Graph, boost::edge_index_t EProp::*>::type EdgeIndexMap;

@@ -36,10 +36,43 @@
 // MINT defined headers
 #include "util.hpp"
 #include "BGLDefinitions.hpp"
+#include "LoadGraphfromFile.hpp"
 
+namespace std //As  we are using map with Eigen::VectorXd as key!
+{
+  template<> struct less<Eigen::VectorXd>
+  {
+    bool operator() (Eigen::VectorXd const& a, Eigen::VectorXd const& b) const
+    {
+      assert(a.size()==b.size());
+      for(size_t i=0;i<a.size();++i)
+      {
+        if(a[i]<b[i]) return true;
+        if(a[i]>b[i]) return false;
+      }
+      return false;
+    }
+  };
+}
 namespace MINT {
 
 using namespace BGL_DEFINITIONS;
+
+
+template<typename T>
+struct matrix_hash : std::unary_function<T, size_t> {
+  std::size_t operator()(T const& matrix) const {
+    // Note that it is oblivious to the storage order of Eigen matrix (column- or
+    // row-major). It will give you the same hash value for two different matrices if they
+    // are the transpose of each other in different storage order.
+    size_t seed = 0;
+    for (size_t i = 0; i < matrix.size(); ++i) {
+      auto elem = *(matrix.data() + i);
+      seed ^= std::hash<typename T::Scalar>()(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    return seed;
+  }
+};
 
 /// The OMPL Planner class that implements the algorithm
 class MINT: public ompl::base::Planner
@@ -148,7 +181,7 @@ private:
   CompositeGraph graph;
 
   /// Roadmap
-  boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>> roadmapPtr;
+  // boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>> roadmapPtr;
 
   /// Path to the roadmap.
   std::string mRoadmapFileName;
@@ -288,15 +321,49 @@ void MINT::setup()
 
   ompl::base::Planner::setup();
 
-  roadmapPtr = boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>>
-                (new utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>
-                (mSpace, mRoadmapFileName));
+  // roadmapPtr = boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>>
+  //               (new utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>
+  //               (mSpace, mRoadmapFileName));
 
-  roadmapPtr->generate(graph,
-                       get(&CompositeVProp::state, graph),
-                       get(&CompositeEProp::length, graph),
-                       get(&CompositeEProp::prior, graph));
+  // roadmapPtr->generate(graph,
+  //                      get(&CompositeVProp::state, graph),
+  //                      get(&CompositeEProp::length, graph),
+  //                      get(&CompositeEProp::prior, graph));
 
+  Graph individual_graph;
+
+  create_vertices(individual_graph,get(&VProp::state,individual_graph),mRoadmapFileName,mSpace->getDimension(),get(&EProp::prior,individual_graph));
+  create_edges(individual_graph,get(&EProp::length,individual_graph));
+
+  VertexIter ind_vi, ind_vi_end;
+
+  std::unordered_map<Eigen::VectorXd, CompositeVertex, matrix_hash<Eigen::VectorXd>> configToNodeMap;
+
+  for(boost::tie(ind_vi,ind_vi_end) = vertices(individual_graph); ind_vi!=ind_vi_end; ind_vi++)
+  {
+    Eigen::VectorXd config = individual_graph[*ind_vi].state;
+    utils::StateWrapperPtr newState(new utils::StateWrapper(mSpace));
+    ompl::base::State *ver_state{newState->state};
+    double *values{ver_state->as<ompl::base::RealVectorStateSpace::StateType>()->values};
+    for (size_t ui = 0; ui < mSpace->getDimension(); ui++)
+    {
+      values[ui] = config[ui];
+    }
+    
+    CompositeVertex newVertex = boost::add_vertex(graph);
+    graph[newVertex].state = newState;
+    configToNodeMap[config]=newVertex;
+  }
+
+  EdgeIter ind_ei, ind_ei_end;
+  for (boost::tie(ind_ei, ind_ei_end) = edges(individual_graph); ind_ei != ind_ei_end; ++ind_ei)
+  {
+    CompositeVertex source_vertex = configToNodeMap[individual_graph[source(*ind_ei, individual_graph)].state];
+    CompositeVertex target_vertex = configToNodeMap[individual_graph[target(*ind_ei, individual_graph)].state];
+    std::pair<CompositeEdge,bool> newEdge = boost::add_edge(source_vertex, target_vertex, graph);
+    graph[newEdge.first].length = mSpace->distance(graph[source_vertex].state->state, graph[target_vertex].state->state);
+    graph[newEdge.first].prior = 1.0;
+  }
   // Set default vertex values.
   CompositeVertexIter vi, vi_end;
   for (boost::tie(vi, vi_end) = vertices(graph); vi != vi_end; ++vi)
