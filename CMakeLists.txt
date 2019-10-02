@@ -51,15 +51,15 @@ include_directories(${DART_INCLUDE_DIRS})
 
 # For example scripts
 # Generic 2D example scipt. API - 1
-add_executable(example2DMINT_image examples/example2DMINT_image.cpp)
-target_link_libraries(example2DMINT_image 
+add_executable(exampleTwoAgentsMINT examples/exampleTwoAgentsMINT.cpp)
+target_link_libraries(exampleTwoAgentsMINT
   ${OpenCV_LIBS}  
   ${Boost_LIBRARIES}
   ${DART_LIBRARIES}
   ${OMPL_LIBRARIES}
   )
 
-install(TARGETS example2DMINT_image RUNTIME DESTINATION bin)
+install(TARGETS exampleTwoAgentsMINT RUNTIME DESTINATION bin)
 
 # Generic 2D example scipt. API - 2
 #add_executable(example2DMINT examples/example2DMINT.cpp)
