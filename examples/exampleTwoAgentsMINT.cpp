@@ -44,7 +44,7 @@ bool isPointValid(cv::Mat image, const ompl::base::State *state)
   // Get the required point on the map
   int numberOfRows = image.rows;
   int numberOfColumns = image.cols;
-  
+
   //left agent
   double left_x_point = values[0]*numberOfColumns;
   double left_y_point = (1 - values[1])*numberOfRows;
@@ -98,7 +98,7 @@ void displayPath(std::string obstacleFile,
     cv::Point left_vPoint((int)(v[0]*numberOfColumns), (int)((1 - v[1])*numberOfRows));
 
     cv::line(image, left_uPoint, left_vPoint, cv::Scalar(255, 0, 0), 3);
-  
+
     cv::Point right_uPoint((int)(u[2]*numberOfColumns), (int)((1 - u[3])*numberOfRows));
     cv::Point right_vPoint((int)(v[2]*numberOfColumns), (int)((1 - v[3])*numberOfRows));
 
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
     right_graph_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/graphs/halton2D.graphml";
   std::string obstacle_file(vm["obstaclefile"].as<std::string>());
   if (obstacle_file == "")
-    obstacle_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/obstacles/OneWall2D.png";
+    obstacle_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/obstacles/circle2D.png";
   std::vector<float> source(vm["source"].as<std::vector< float> >());
   std::vector<float> target(vm["target"].as<std::vector< float> >());
   bool display(vm["display"].as<bool>());
