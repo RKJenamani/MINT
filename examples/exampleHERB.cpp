@@ -43,10 +43,10 @@ bool isPointValid(HERBUtil &collision_space, const ompl::base::State *state)
   config << values[0],values[1],values[2],values[3],values[4],values[5],values[6], //CHANGE LATER!
     values[7],values[8],values[9],values[10],values[11],values[12],values[13];
   
-  return collision_space.getCollisionStatusVertex(config);
+  return !collision_space.getCollisionStatusVertex(config);
 }
 
-void executePath(std::string obstacleFile, HERBUtil &collision_space,
+void executePath(HERBUtil &collision_space,
                  std::shared_ptr<ompl::geometric::PathGeometric> path)
 {
   // Get state count
@@ -75,7 +75,7 @@ make_state(const ompl::base::StateSpacePtr space, Eigen::VectorXd config)
 {
   ompl::base::ScopedState<ompl::base::RealVectorStateSpace>state(space);
   double* values = state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-  for (size_t ui = 0; ui < Space->getDimension(); ui++)
+  for (size_t ui = 0; ui < space->getDimension(); ui++)
   {
     values[ui] = config[ui];
   }
@@ -86,12 +86,10 @@ int main(int argc, char *argv[])
 {
   po::options_description desc("HERB Planner Options");
   desc.add_options()
-      ("help,h", "produce help message")
-      ("left_graph,g", po::value<std::string>()->default_value(""), "Path to Left Graph")
-      ("right_graph,g", po::value<std::string>()->default_value(""), "Path to Right Graph")
-      ("source,s", po::value<std::vector<float> >()->multitoken(), "source configuration")
-      ("target,t", po::value<std::vector<float> >()->multitoken(), "target configuration")
-      ("execute,d", po::bool_switch()->default_value(true), "Enable to execute final path")
+      ("help", "produce help message")
+      ("left_graph", po::value<std::string>()->default_value(""), "Path to Left Graph")
+      ("right_graph", po::value<std::string>()->default_value(""), "Path to Right Graph")
+      ("execute", po::bool_switch()->default_value(true), "Enable to execute final path")
   ;
 
   // Read arguments
@@ -102,7 +100,7 @@ int main(int argc, char *argv[])
   if (vm.count("help"))
   {
       std::cout << desc << std::endl;
-      return 1;
+      return 0;
   }
 
   std::string left_graph_file(vm["left_graph"].as<std::string>());
@@ -111,11 +109,6 @@ int main(int argc, char *argv[])
     left_graph_file = "/home/rajat/personalrobotics/bgl_minimal_example/data/halton_2d_withedges.graphml";
   if (right_graph_file == "")
     right_graph_file = "/home/rajat/personalrobotics/bgl_minimal_example/data/halton_2d_withedges.graphml";
-  std::string obstacle_file(vm["obstaclefile"].as<std::string>());
-  if (obstacle_file == "")
-    obstacle_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/obstacles/OneWall2D.png";
-  std::vector<float> source(vm["source"].as<std::vector< float> >());
-  std::vector<float> target(vm["target"].as<std::vector< float> >());
   bool execute(vm["execute"].as<bool>());
 
   // Define the state space: R^2
@@ -137,24 +130,23 @@ int main(int argc, char *argv[])
   ompl::base::ProblemDefinitionPtr pdef(new ompl::base::ProblemDefinition(si));
     
   Eigen::VectorXd source_config(space->getDimension());
-  source_config << source[0],source[1],source[2],source[3],source[4],source[5],source[6],
-    source[7],source[8],source[9],source[10],source[11],source[12],source[13]; //TO CHANGE!!
+  source_config << 3.14, -1.57, 0.00, 0.00, 0.00, 0.00, 0.00, 3.14, -1.57, 0.00, 0.00, 0.00, 0.00, 0.00;
 
   Eigen::VectorXd target_config(space->getDimension());
-  target_config << target[0],target[1],target[2],target[3],target[4],target[5],target[6],
-    target[7],target[8],target[9],target[10],target[11],target[12],target[13]; //TO CHANGE!!
-  ;
+  target_config << 1.858433, -0.900109, 0.672778, 2.29866, 0.792, -1.25398, -0.823374, 4.42475, -0.900109, -0.672778, 2.29866, -0.792, -1.25398, 0.823374;
+
   pdef->addStartState(make_state(space, source_config));
   pdef->setGoalState(make_state(space, target_config));
 
   // Setup planner
-  MINT::MINT planner(si, left_graph_file);
+  MINT::MINT planner(si, left_graph_file, right_graph_file);
 
   planner.setup();
   planner.setProblemDefinition(pdef);
 
   // Solve the motion planning problem
   ompl::base::PlannerStatus status;
+  std::cout<<"SOLVING!"<<std::endl;
   status = planner.solve(ompl::base::plannerNonTerminatingCondition());
 
   if (execute)
@@ -164,7 +156,7 @@ int main(int argc, char *argv[])
     {
       auto path = std::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
                                                               pdef->getSolutionPath());
-      executePath(obstacle_file, collision_space, path);
+      executePath(collision_space, path);
     }
   }
   else
