@@ -41,11 +41,11 @@ namespace BGL_DEFINITIONS {
     /// The underlying state of the vertex
     utils::StateWrapperPtr state;
 
-    /// g-value
-    double distance = std::numeric_limits<double>::infinity();
+    /// Cost-to-Come
+    double costToCome = std::numeric_limits<double>::infinity();
 
-    /// LookAhead Value
-    double distanceLookahead = std::numeric_limits<double>::infinity();
+    /// Heuristic value
+    double heuristic = std::numeric_limits<double>::infinity();
 
     /// Parent
     std::size_t parent;

@@ -106,9 +106,9 @@ int main(int argc, char *argv[])
   std::string left_graph_file(vm["left_graph"].as<std::string>());
   std::string right_graph_file(vm["right_graph"].as<std::string>());
   if (left_graph_file == "")
-    left_graph_file = "/home/rajat/personalrobotics/bgl_minimal_example/data/halton_2d_withedges.graphml";
+    left_graph_file = "/home/rajat/melodic_ws/src/MINT/data/graphs/HERB_graphs/1/left_arm/herb_halton_l_100_20.graphml";
   if (right_graph_file == "")
-    right_graph_file = "/home/rajat/personalrobotics/bgl_minimal_example/data/halton_2d_withedges.graphml";
+    right_graph_file = "/home/rajat/melodic_ws/src/MINT/data/graphs/HERB_graphs/1/right_arm/herb_halton_r_100_20.graphml";
   bool execute(vm["execute"].as<bool>());
 
   // Define the state space: R^2
@@ -135,6 +135,10 @@ int main(int argc, char *argv[])
   Eigen::VectorXd target_config(space->getDimension());
   target_config << 1.858433, -0.900109, 0.672778, 2.29866, 0.792, -1.25398, -0.823374, 4.42475, -0.900109, -0.672778, 2.29866, -0.792, -1.25398, 0.823374;
 
+  // std::cout<<"Values: "<<std::endl;
+  // std::cout<<(source_config.segment(0,7)-target_config.segment(0,7)).norm()<<std::endl;
+  // std::cout<<(source_config.segment(7,7)-target_config.segment(7,7)).norm()<<std::endl;
+
   pdef->addStartState(make_state(space, source_config));
   pdef->setGoalState(make_state(space, target_config));
 
@@ -146,7 +150,7 @@ int main(int argc, char *argv[])
 
   // Solve the motion planning problem
   ompl::base::PlannerStatus status;
-  std::cout<<"SOLVING!"<<std::endl;
+  std::cout<<"SOLVING..."<<std::endl;
   status = planner.solve(ompl::base::plannerNonTerminatingCondition());
 
   if (execute)

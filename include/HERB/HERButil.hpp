@@ -441,7 +441,7 @@ public:
 	bool getCollisionStatusVertex(Eigen::VectorXd &config)
 	{
 		// std::cout<<"Inside getCollisionStatus!"<<std::endl;
-		int dim = (source_config.size())/2;
+		int dim = (config.size())/2;
 		
 		Eigen::VectorXd left_config(dim);
 		Eigen::VectorXd right_config(dim);
@@ -466,11 +466,11 @@ public:
 		mRightArmSpace->convertPositionsToState(right_config, right_state);
 
 		bool col =false;
-		mLeftArmSpace->setState((&(*mLeftArm)),left_state)
+		mLeftArmSpace->setState((&(*mLeftArm)),left_state);
 		mRightArmSpace->setState((&(*mRightArm)),right_state);
-		if (!mRightFullTestable->isSatisfied(right_test_state))
+		if (!mRightFullTestable->isSatisfied(right_state))
 			col=true;
-		if (!mLeftFullTestable->isSatisfied(left_test_state))
+		if (!mLeftFullTestable->isSatisfied(left_state))
 			col=true;
 		return col;
 	}

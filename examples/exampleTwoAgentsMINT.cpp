@@ -65,10 +65,10 @@ bool isPointValid(cv::Mat image, const ompl::base::State *state)
   if (right_intensity == 0) // Pixel is black
     return false;
 
-  // // Collision check of left-agent and right-agent with each other
-  // if((right_point.x-left_point.x)*(right_point.x-left_point.x) + 
-  //   (right_point.y-left_point.y)*(right_point.y-left_point.y) < 9 )
-  //   return false;
+  // Collision check of left-agent and right-agent with each other
+  if((right_point.x-left_point.x)*(right_point.x-left_point.x) + 
+    (right_point.y-left_point.y)*(right_point.y-left_point.y) < 9 )
+    return false;
 
   return true;
 }
@@ -153,12 +153,12 @@ int main(int argc, char *argv[])
   std::string left_graph_file(vm["left_graph"].as<std::string>());
   std::string right_graph_file(vm["right_graph"].as<std::string>());
   if (left_graph_file == "")
-    left_graph_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/graphs/halton2D.graphml";
+    left_graph_file = "/home/rajat/melodic_ws/src/MINT/data/graphs/halton_2d_withedges.graphml";
   if (right_graph_file == "")
-    right_graph_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/graphs/halton2D.graphml";
+    right_graph_file = "/home/rajat/melodic_ws/src/MINT/data/graphs/halton_2d_withedges.graphml";
   std::string obstacle_file(vm["obstaclefile"].as<std::string>());
   if (obstacle_file == "")
-    obstacle_file = "/home/rajat/personalrobotics/ompl_ws/src/MINT/data/obstacles/circle2D.png";
+    obstacle_file = "/home/rajat/melodic_ws/src/MINT/data/obstacles/circle2D.png";
   std::vector<float> source(vm["source"].as<std::vector< float> >());
   std::vector<float> target(vm["target"].as<std::vector< float> >());
   bool display(vm["display"].as<bool>());
@@ -184,11 +184,12 @@ int main(int argc, char *argv[])
   pdef->setGoalState(make_state(space, target[0], target[1], target[2], target[3]));
 
   // Setup planner
-  MINT::MINT planner(si, left_graph_file);
+  MINT::MINT planner(si, left_graph_file,right_graph_file);
 
   planner.setup();
   planner.setProblemDefinition(pdef);
 
+  std::cout<<"CALLING SOLVE!"<<std::endl;
   // Solve the motion planning problem
   ompl::base::PlannerStatus status;
   status = planner.solve(ompl::base::plannerNonTerminatingCondition());
