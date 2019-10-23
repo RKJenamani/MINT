@@ -42,7 +42,7 @@ namespace BGL_DEFINITIONS {
     utils::StateWrapperPtr state;
 
     /// Cost-to-Come
-    double costToCome = std::numeric_limits<double>::infinity();
+    double distance = std::numeric_limits<double>::infinity();
 
     /// Heuristic value
     double heuristic = std::numeric_limits<double>::infinity();
@@ -126,7 +126,7 @@ namespace BGL_DEFINITIONS {
     Eigen::VectorXd state;
 
     /// Cost-to-Come
-    double costToCome = std::numeric_limits<double>::infinity();
+    double distance = std::numeric_limits<double>::infinity();
 
     /// Heuristic value
     double heuristic = std::numeric_limits<double>::infinity();
