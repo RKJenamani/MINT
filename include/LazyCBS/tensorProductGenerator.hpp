@@ -20,7 +20,7 @@
 
 #include "BGLDefinitions.hpp"
 
-#define PAUSE_PENALTY 1.0
+#define PAUSE_PENALTY 0.1
 
 namespace std //As  we are using map with Eigen::VectorXd as key!
 {

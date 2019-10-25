@@ -41,6 +41,8 @@
 #include "tensorProductGenerator.hpp"
 #include "time_priority_queue.hpp"
 
+std::string selector("composite"); //global selector for Collision Checking (options: composite, left and right)
+
 // namespace std //As  we are using map with Eigen::VectorXd as key!
 // {
 // 	template<> struct less<Eigen::VectorXd>
@@ -149,6 +151,7 @@ void displayPath(CompositeGraph &graph, std::vector<CompositeVertex> shortestPat
 // 		return seed;
 // 	}
 // };
+
 
 struct pair_hash {
     template <class T1, class T2>
@@ -578,8 +581,10 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 
 	auto validityChecker = si_->getStateValidityChecker();
 
+	selector = std::string("composite"); // global selector
 	if(!validityChecker->isValid(startState->state))
 		throw ompl::Exception("Start configuration is in collision!");
+	selector = std::string("composite"); // global selector
 	if(!validityChecker->isValid(goalState->state))
 		throw ompl::Exception("Goal configuration is in collision!");
 
@@ -1224,6 +1229,8 @@ bool LazyCBS::evaluateEdge(const CompositeEdge& e)
 	auto nStates = graph[e].edgeStates.size();
 
 	bool checkResult = true;
+
+	selector = std::string("composite"); // global selector
 	
 	// Evaluate Start and End States [we only assume states in self-collision are pruned out]
 	if (checkResult && !validityChecker->isValid(startState))
@@ -1233,6 +1240,8 @@ bool LazyCBS::evaluateEdge(const CompositeEdge& e)
 		graph[e].length = std::numeric_limits<double>::max();
 		checkResult = false;
 	}
+
+	selector = std::string("composite"); // global selector
 
 	if (checkResult && !validityChecker->isValid(endState))
 	{
@@ -1247,6 +1256,7 @@ bool LazyCBS::evaluateEdge(const CompositeEdge& e)
 		// Evaluate the States in between
 		for (unsigned int i = 1; i < nStates-1; i++)
 		{
+			selector = std::string("composite"); // global selector
 			if(!validityChecker->isValid(graph[e].edgeStates[i]->state))
 			{
 				graph[e].status = CollisionStatus::BLOCKED;

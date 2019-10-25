@@ -1,5 +1,5 @@
-#ifndef HERB_UTIL_
-#define HERB_UTIL_
+#ifndef COMPOSITE_HERB_UTIL_
+#define COMPOSITE_HERB_UTIL_
 
 #include <iostream>
 #include <Eigen/Dense>
@@ -51,7 +51,7 @@ using aikido::trajectory::InterpolatedPtr;
 
 using magi::action::ActionPtr;
 
-class HERBUtil
+class CompositeHERBUtil
 {
 public:
 
@@ -75,7 +75,7 @@ public:
 
 	std::vector<SkeletonPtr> mObstacles;
 
-	HERBUtil()
+	CompositeHERBUtil()
 	{
 		// waitForUser("Press [ENTER] to start constructor: ");
 		char *argv[] = { "long", "live", "HERB" };

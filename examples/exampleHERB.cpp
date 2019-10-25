@@ -28,11 +28,11 @@
 
 // Custom header files
 #include "MINT/MINT.hpp"
-#include "HERB/HERButil.hpp"
+#include "HERB/compositeHERBUtil.hpp"
 
 namespace po = boost::program_options;
 
-bool isPointValid(HERBUtil &collision_space, const ompl::base::State *state)
+bool isPointValid(CompositeHERBUtil &collision_space, const ompl::base::State *state)
 {
   // Obtain the state values
   double* values = state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
@@ -46,7 +46,7 @@ bool isPointValid(HERBUtil &collision_space, const ompl::base::State *state)
   return !collision_space.getCollisionStatusVertex(config);
 }
 
-void executePath(HERBUtil &collision_space,
+void executePath(CompositeHERBUtil &collision_space,
                  std::shared_ptr<ompl::geometric::PathGeometric> path)
 {
   // Get state count
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
   space->setup();
 
   // Space Information
-  HERBUtil collision_space;
+  CompositeHERBUtil collision_space;
   std::function<bool(const ompl::base::State*)> isStateValid = std::bind(
                                                     isPointValid, collision_space, std::placeholders::_1);
   ompl::base::SpaceInformationPtr si(new ompl::base::SpaceInformation(space));
