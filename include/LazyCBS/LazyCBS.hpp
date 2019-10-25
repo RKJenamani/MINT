@@ -1,7 +1,7 @@
 /* Authors: Rajat Kumar Jenamani */
 
-#ifndef MINT_HPP_
-#define MINT_HPP_
+#ifndef LazyCBS_HPP_
+#define LazyCBS_HPP_
 
 // STL headers
 #include <vector>
@@ -33,10 +33,11 @@
 #include <ompl/datastructures/NearestNeighbors.h>
 #include <ompl/datastructures/NearestNeighborsGNAT.h>
 
-// MINT defined headers
+// LazyCBS defined headers
 #include "util.hpp"
 #include "BGLDefinitions.hpp"
 #include "LoadGraphfromFile.hpp"
+#include "CBSDefinitions.hpp"
 #include "tensorProductGenerator.hpp"
 
 // namespace std //As  we are using map with Eigen::VectorXd as key!
@@ -55,14 +56,14 @@
 // 		}
 // 	};
 // }
-namespace MINT {
+namespace LazyCBS {
 
 using namespace BGL_DEFINITIONS;
 
 void displayGraph(CompositeGraph &graph)
 {
   // Obtain the image matrix
-  cv::Mat image = cv::imread("/home/rajat/personalrobotics/ompl_ws/src/MINT/data/obstacles/circle2D.png", 1);
+  cv::Mat image = cv::imread("/home/rajat/personalrobotics/ompl_ws/src/LazyCBS/data/obstacles/circle2D.png", 1);
   int numberOfRows = image.rows;
   int numberOfColumns = image.cols;
 
@@ -109,7 +110,7 @@ void displayGraph(CompositeGraph &graph)
 void displayPath(CompositeGraph &graph, std::vector<CompositeVertex> shortestPath)
 {
 	// Obtain the image matrix
-	cv::Mat image = cv::imread("/home/rajat/personalrobotics/ompl_ws/src/MINT/data/obstacles/circle2D.png", 1);
+	cv::Mat image = cv::imread("/home/rajat/personalrobotics/ompl_ws/src/LazyCBS/data/obstacles/circle2D.png", 1);
 	int numberOfRows = image.rows;
 	int numberOfColumns = image.cols;
 
@@ -149,21 +150,21 @@ void displayPath(CompositeGraph &graph, std::vector<CompositeVertex> shortestPat
 // };
 
 /// The OMPL Planner class that implements the algorithm
-class MINT: public ompl::base::Planner
+class LazyCBS: public ompl::base::Planner
 {
 public:
 	/// Constructor
 	/// \param[in] si The OMPL space information manager
-	explicit MINT(const ompl::base::SpaceInformationPtr &si);
+	explicit LazyCBS(const ompl::base::SpaceInformationPtr &si);
 
 	/// \param[in] si The OMPL space information manager
 	/// \param[in] roadmapFileName The path to the .graphml file that encodes the roadmap.
 	/// \param[in] greediness The greediness to evaluate lazy shortest paths. Default is 1.
-	MINT(const ompl::base::SpaceInformationPtr &si,
+	LazyCBS(const ompl::base::SpaceInformationPtr &si,
 		const std::string& leftRoadmapFileName, const std::string& rightRoadmapFileName);
 
 	/// Destructor
-	~MINT(void);
+	~LazyCBS(void);
 
 	///////////////////////////////////////////////////////////////////
 
@@ -374,16 +375,16 @@ private:
 
 	/// A Star
 	std::vector<CompositeVertex> AStar();
-}; // class MINT
+}; // class LazyCBS
 
-} // namespace MINT
+} // namespace LazyCBS
 
 
-namespace MINT
+namespace LazyCBS
 {
 
-MINT::MINT(const ompl::base::SpaceInformationPtr &si)
-	: ompl::base::Planner(si, "MINT")
+LazyCBS::LazyCBS(const ompl::base::SpaceInformationPtr &si)
+	: ompl::base::Planner(si, "LazyCBS")
 	, mSpace(si->getStateSpace())
 	, mLeftRoadmapFileName("")
 	, mRightRoadmapFileName("")
@@ -392,13 +393,13 @@ MINT::MINT(const ompl::base::SpaceInformationPtr &si)
 	, mTPG(si->getStateSpace())
 {
 	// Register my setting callbacks.
-	Planner::declareParam<std::string>("leftRoadmapFilename", this, &MINT::setLeftRoadmapFileName, &MINT::getLeftRoadmapFileName);
-	Planner::declareParam<std::string>("rightRoadmapFilename", this, &MINT::setRightRoadmapFileName, &MINT::getRightRoadmapFileName);
+	Planner::declareParam<std::string>("leftRoadmapFilename", this, &LazyCBS::setLeftRoadmapFileName, &LazyCBS::getLeftRoadmapFileName);
+	Planner::declareParam<std::string>("rightRoadmapFilename", this, &LazyCBS::setRightRoadmapFileName, &LazyCBS::getRightRoadmapFileName);
 }
 
-MINT::MINT(const ompl::base::SpaceInformationPtr &si,
+LazyCBS::LazyCBS(const ompl::base::SpaceInformationPtr &si,
 	const std::string& leftRoadmapFileName, const std::string& rightRoadmapFileName)
-	: ompl::base::Planner(si, "MINT")
+	: ompl::base::Planner(si, "LazyCBS")
 	, mSpace(si->getStateSpace())
 	, mLeftRoadmapFileName(leftRoadmapFileName)
 	, mRightRoadmapFileName(rightRoadmapFileName)
@@ -413,13 +414,13 @@ MINT::MINT(const ompl::base::SpaceInformationPtr &si,
 		throw std::invalid_argument("Provide a non-empty path to right roadmap.");
 }
 
-MINT::~MINT()
+LazyCBS::~LazyCBS()
 {
 	// Do nothing.
 }
 
 // ===========================================================================================
-void MINT::setup()
+void LazyCBS::setup()
 {
 	// Check if already setup.
 	if (static_cast<bool>(ompl::base::Planner::setup_))
@@ -505,7 +506,7 @@ void MINT::setup()
 }
 
 // ===========================================================================================
-void MINT::clear()
+void LazyCBS::clear()
 {
 	// Set default vertex values.
 	CompositeVertexIter vi, vi_end;
@@ -535,7 +536,7 @@ void MINT::clear()
 }
 
 // ===========================================================================================
-void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
+void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 {
 	// Make sure we setup the planner first.
 	if (!static_cast<bool>(ompl::base::Planner::setup_))
@@ -776,7 +777,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// mGoalVertex = mTPG.configToNodeTPG(goal_config);
 }
 
-std::vector<CompositeVertex> MINT::getNeighbors(CompositeVertex &v)
+std::vector<CompositeVertex> LazyCBS::getNeighbors(CompositeVertex &v)
 {
 	std::vector <CompositeVertex> neighbors;
 	Eigen::VectorXd goal_config(mSpace->getDimension());
@@ -806,7 +807,7 @@ std::vector<CompositeVertex> MINT::getNeighbors(CompositeVertex &v)
 	// return neighbors;
 }
 
-std::vector<CompositeVertex> MINT::AStar()
+std::vector<CompositeVertex> LazyCBS::AStar()
 {
 	std::chrono::time_point<std::chrono::system_clock> start_time, end_time,
 		start_neighbors_time, end_neighbors_time, start_queue_time, end_queue_time,
@@ -963,7 +964,7 @@ std::vector<CompositeVertex> MINT::AStar()
 }
 
 // ===========================================================================================
-ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondition & ptc)
+ompl::base::PlannerStatus LazyCBS::solve(const ompl::base::PlannerTerminationCondition & ptc)
 {
 	std::cout<<"IN SOLVE:!"<<std::endl;
 	bool solutionFound = false;
@@ -1041,85 +1042,85 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 // ===========================================================================================
 // Setters
 
-void MINT::setLeftRoadmapFileName(const std::string& leftRoadmapFileName)
+void LazyCBS::setLeftRoadmapFileName(const std::string& leftRoadmapFileName)
 {
 	mLeftRoadmapFileName = leftRoadmapFileName;
 }
 
-void MINT::setRightRoadmapFileName(const std::string& rightRoadmapFileName)
+void LazyCBS::setRightRoadmapFileName(const std::string& rightRoadmapFileName)
 {
 	mRightRoadmapFileName = rightRoadmapFileName;
 }
 
 
-void MINT::setConnectionRadius(double connectionRadius)
+void LazyCBS::setConnectionRadius(double connectionRadius)
 {
 	mConnectionRadius = connectionRadius;
 }
 
-void MINT::setCheckRadius(double checkRadius)
+void LazyCBS::setCheckRadius(double checkRadius)
 {
 	mCheckRadius = checkRadius;
 }
 // ===========================================================================================
 // Getters
 
-std::string MINT::getLeftRoadmapFileName() const
+std::string LazyCBS::getLeftRoadmapFileName() const
 {
 	return mLeftRoadmapFileName;
 }
-std::string MINT::getRightRoadmapFileName() const
+std::string LazyCBS::getRightRoadmapFileName() const
 {
 	return mRightRoadmapFileName;
 }
 
-double MINT::getConnectionRadius() const
+double LazyCBS::getConnectionRadius() const
 {
 	return mConnectionRadius;
 }
 
-double MINT::getCheckRadius() const
+double LazyCBS::getCheckRadius() const
 {
 	return mCheckRadius;
 }
 
-CompositeVertex MINT::getStartVertex() const
+CompositeVertex LazyCBS::getStartVertex() const
 {
 	return mStartVertex;
 }
 
-CompositeVertex MINT::getGoalVertex() const
+CompositeVertex LazyCBS::getGoalVertex() const
 {
 	return mGoalVertex;
 }
 
-double MINT::getBestPathCost() const
+double LazyCBS::getBestPathCost() const
 {
 	return mBestPathCost;
 }
 
-std::size_t MINT::getNumEdgeEvaluations() const
+std::size_t LazyCBS::getNumEdgeEvaluations() const
 {
 	return mNumEdgeEvals;
 }
 
-std::size_t MINT::getNumEdgeRewires() const
+std::size_t LazyCBS::getNumEdgeRewires() const
 {
 	return mNumEdgeRewires;
 }
 
-double MINT::getEdgeEvaluationsTime() const
+double LazyCBS::getEdgeEvaluationsTime() const
 {
 	return mEdgeEvaluationsTime;
 }
 
-double MINT::getSearchTime() const
+double LazyCBS::getSearchTime() const
 {
 	return mSearchTime;
 }
 
 // ===========================================================================================
-ompl::base::PathPtr MINT::constructSolution(const CompositeVertex &start, const CompositeVertex &goal) const
+ompl::base::PathPtr LazyCBS::constructSolution(const CompositeVertex &start, const CompositeVertex &goal) const
 {
 	std::set<CompositeVertex> seen;
 
@@ -1147,7 +1148,7 @@ ompl::base::PathPtr MINT::constructSolution(const CompositeVertex &start, const 
 }
 
 // ===========================================================================================
-void MINT::initializeEdgePoints(const CompositeEdge& e)
+void LazyCBS::initializeEdgePoints(const CompositeEdge& e)
 {
 	auto startState = graph[source(e,graph)].state->state;
 	auto endState = graph[target(e,graph)].state->state;
@@ -1177,7 +1178,7 @@ void MINT::initializeEdgePoints(const CompositeEdge& e)
 }
 
 // ===========================================================================================
-bool MINT::evaluateEdge(const CompositeEdge& e)
+bool LazyCBS::evaluateEdge(const CompositeEdge& e)
 {
 	// Log Time
 	std::chrono::time_point<std::chrono::system_clock> startEvaluationTime{std::chrono::system_clock::now()};
@@ -1240,7 +1241,7 @@ bool MINT::evaluateEdge(const CompositeEdge& e)
 }
 
 // ===========================================================================================
-CompositeEdge MINT::getEdge(CompositeVertex u, CompositeVertex v) const
+CompositeEdge LazyCBS::getEdge(CompositeVertex u, CompositeVertex v) const
 {
 	CompositeEdge uv;
 	bool edgeExists;
@@ -1250,13 +1251,13 @@ CompositeEdge MINT::getEdge(CompositeVertex u, CompositeVertex v) const
 }
 
 // ===========================================================================================
-double MINT::estimateCostToCome(CompositeVertex v) const
+double LazyCBS::estimateCostToCome(CompositeVertex v) const
 {
 	// return graph[v].distance + graph[v].lazyCostToCome;
 	return graph[v].distance;
 }
 
-double MINT::heuristicFunction(CompositeVertex v) const
+double LazyCBS::heuristicFunction(CompositeVertex v) const
 {
 	return graph[v].heuristic;
 	// return mSpace->distance(graph[v].state->state, graph[mGoalVertex].state->state);
@@ -1281,11 +1282,11 @@ double MINT::heuristicFunction(CompositeVertex v) const
 	// 						(composite_config.segment(7,7)-goal_composite_config.segment(7,7)).norm());
 }
 
-double MINT::estimateTotalCost(CompositeVertex v) const
+double LazyCBS::estimateTotalCost(CompositeVertex v) const
 {
 	return estimateCostToCome(v) + heuristicFunction(v);
 }
 
-} // namespace MINT
+} // namespace LazyCBS
 
-#endif // MINT_MINT_HPP_
+#endif // LazyCBS_LazyCBS_HPP_

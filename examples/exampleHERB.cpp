@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
   pdef->setGoalState(make_state(space, target_config));
 
   // Setup planner
-  MINT::MINT planner(std::string("LazySP"), si, left_graph_file, right_graph_file);
+  MINT::MINT planner(si, left_graph_file, right_graph_file);
 
   planner.setup();
   planner.setProblemDefinition(pdef);

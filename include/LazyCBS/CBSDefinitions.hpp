@@ -3,7 +3,7 @@
 #include <bits/stdc++.h>
 #include "BGLDefinitions.hpp"
 
-namespace MINT {
+namespace LazyCBS {
 
 using namespace BGL_DEFINITIONS;
 
@@ -132,6 +132,6 @@ public:
 	}
 };
 
-} // namespace MINT
+} // namespace LazyCBS
 
 #endif
