@@ -3,7 +3,7 @@
 
 #include<bits/stdc++.h>
 
-class LazyCBS
+namespace LazyCBS
 {
 
 class timePriorityQueue
@@ -26,7 +26,7 @@ private:
 				return false;
 		}
 	};
-	vector <element> PQ;
+	std::vector <element> PQ;
 
 	void min_heapify(int x)
 	{
@@ -60,9 +60,9 @@ public:
 	{
 		return PQ.size()-1;
 	}
-	pair<double,double> topKey()
+	std::pair<double,double> topKey()
 	{
-		return make_pair(PQ[1].key1,PQ[1].key2);
+		return std::make_pair(PQ[1].key1,PQ[1].key2);
 	}
 	std::pair<int,size_t> pop()
 	{

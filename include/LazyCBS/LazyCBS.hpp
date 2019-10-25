@@ -39,6 +39,7 @@
 #include "LoadGraphfromFile.hpp"
 #include "CBSDefinitions.hpp"
 #include "tensorProductGenerator.hpp"
+#include "time_priority_queue.hpp"
 
 // namespace std //As  we are using map with Eigen::VectorXd as key!
 // {
@@ -148,6 +149,18 @@ void displayPath(CompositeGraph &graph, std::vector<CompositeVertex> shortestPat
 // 		return seed;
 // 	}
 // };
+
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator () (const std::pair<T1,T2> &p) const {
+        auto h1 = std::hash<T1>{}(p.first);
+        auto h2 = std::hash<T2>{}(p.second);
+
+        // Mainly for demonstration purposes, i.e. works but is overly simple
+        // In the real world, use sth. like boost.hash_combine
+        return h1 ^ h2;  
+    }
+};
 
 /// The OMPL Planner class that implements the algorithm
 class LazyCBS: public ompl::base::Planner
@@ -324,6 +337,12 @@ private:
 	/// Goal vertex.
 	CompositeVertex mGoalVertex;
 
+	Vertex mLeftStartVertex;
+	Vertex mLeftGoalVertex;
+
+	Vertex mRightStartVertex;
+	Vertex mRightGoalVertex;
+
 	/// Set of vertices to be rewired.
 	unorderedSet mSetRewire;
 
@@ -375,6 +394,11 @@ private:
 
 	/// A Star
 	std::vector<CompositeVertex> AStar();
+
+	std::vector<Vertex> leftComputeShortestPath(std::vector<Constraint> constraints, double& costOut);
+	std::vector<Vertex> leftLazyComputeShortestPath(std::vector<Constraint> constraints, double& costOut);
+	std::vector<Vertex> rightComputeShortestPath(std::vector<Constraint> constraints, double& costOut);
+	std::vector<Vertex> rightLazyComputeShortestPath(std::vector<Constraint> constraints, double& costOut);
 }; // class LazyCBS
 
 } // namespace LazyCBS
@@ -602,17 +626,17 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 
 	// std::cout<<left_start_config<<std::endl;
 
-	Vertex left_start_vertex;
-	left_start_vertex = add_vertex(left_graph);
-	left_graph[left_start_vertex].state = left_start_config;
-	left_graph[left_start_vertex].vertex_index = boost::num_vertices(left_graph) - 1;
+	// Vertex mLeftStartVertex;
+	mLeftStartVertex = add_vertex(left_graph);
+	left_graph[mLeftStartVertex].state = left_start_config;
+	left_graph[mLeftStartVertex].vertex_index = boost::num_vertices(left_graph) - 1;
 
-	// std::cout<<left_graph[left_start_vertex].state<<std::endl;
+	// std::cout<<left_graph[mLeftStartVertex].state<<std::endl;
 
-	Vertex left_goal_vertex;
-	left_goal_vertex = add_vertex(left_graph);
-	left_graph[left_goal_vertex].state = left_goal_config;
-	left_graph[left_goal_vertex].vertex_index = boost::num_vertices(left_graph) - 1;
+	// Vertex mLeftGoalVertex;
+	mLeftGoalVertex = add_vertex(left_graph);
+	left_graph[mLeftGoalVertex].state = left_goal_config;
+	left_graph[mLeftGoalVertex].vertex_index = boost::num_vertices(left_graph) - 1;
 
 	size_t startDegree = 0;
 	size_t goalDegree = 0;
@@ -620,14 +644,14 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	VertexIter ind_vi, ind_vi_end;
 	for (boost::tie(ind_vi, ind_vi_end) = vertices(left_graph); ind_vi != ind_vi_end; ++ind_vi)
 	{
-		double startDist = (left_graph[left_start_vertex].state-left_graph[*ind_vi].state).norm();
-		double goalDist = (left_graph[left_goal_vertex].state-left_graph[*ind_vi].state).norm();
+		double startDist = (left_graph[mLeftStartVertex].state-left_graph[*ind_vi].state).norm();
+		double goalDist = (left_graph[mLeftGoalVertex].state-left_graph[*ind_vi].state).norm();
 
 		if (startDist < mConnectionRadius)
 		{
-			if(left_start_vertex == *ind_vi)
+			if(mLeftStartVertex == *ind_vi)
 				continue;
-			std::pair<Edge,bool> newEdge = boost::add_edge(left_start_vertex, *ind_vi, left_graph);
+			std::pair<Edge,bool> newEdge = boost::add_edge(mLeftStartVertex, *ind_vi, left_graph);
 			left_graph[newEdge.first].length = startDist;
 			left_graph[newEdge.first].prior = 1.0;
 			left_graph[newEdge.first].isEvaluated = false;
@@ -637,9 +661,9 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 
 		if (goalDist < mConnectionRadius)
 		{
-			if(left_goal_vertex == *ind_vi)
+			if(mLeftGoalVertex == *ind_vi)
 				continue;
-			std::pair<Edge,bool> newEdge = boost::add_edge(left_goal_vertex, *ind_vi, left_graph);
+			std::pair<Edge,bool> newEdge = boost::add_edge(mLeftGoalVertex, *ind_vi, left_graph);
 			left_graph[newEdge.first].length = goalDist;
 			left_graph[newEdge.first].prior = 1.0;
 			left_graph[newEdge.first].isEvaluated = false;
@@ -653,15 +677,15 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 
 	// start and goal added to right graph 
 
-	Vertex right_start_vertex;
-	right_start_vertex = add_vertex(right_graph);
-	right_graph[right_start_vertex].state = right_start_config;
-	right_graph[right_start_vertex].vertex_index = boost::num_vertices(right_graph) - 1;
+	// Vertex mRightStartVertex;
+	mRightStartVertex = add_vertex(right_graph);
+	right_graph[mRightStartVertex].state = right_start_config;
+	right_graph[mRightStartVertex].vertex_index = boost::num_vertices(right_graph) - 1;
 
-	Vertex right_goal_vertex;
-	right_goal_vertex = add_vertex(right_graph);
-	right_graph[right_goal_vertex].state = right_goal_config;
-	right_graph[right_goal_vertex].vertex_index = boost::num_vertices(right_graph) - 1;
+	// Vertex mRightGoalVertex;
+	mRightGoalVertex = add_vertex(right_graph);
+	right_graph[mRightGoalVertex].state = right_goal_config;
+	right_graph[mRightGoalVertex].vertex_index = boost::num_vertices(right_graph) - 1;
 
 	startDegree = 0;
 	goalDegree = 0;
@@ -669,14 +693,14 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// VertexIter ind_vi, ind_vi_end;
 	for (boost::tie(ind_vi, ind_vi_end) = vertices(right_graph); ind_vi != ind_vi_end; ++ind_vi)
 	{
-		double startDist = (right_graph[right_start_vertex].state-right_graph[*ind_vi].state).norm();
-		double goalDist = (right_graph[right_goal_vertex].state-right_graph[*ind_vi].state).norm();
+		double startDist = (right_graph[mRightStartVertex].state-right_graph[*ind_vi].state).norm();
+		double goalDist = (right_graph[mRightGoalVertex].state-right_graph[*ind_vi].state).norm();
 
 		if (startDist < mConnectionRadius)
 		{
-			if(right_start_vertex == *ind_vi)
+			if(mRightStartVertex == *ind_vi)
 				continue;
-			std::pair<Edge,bool> newEdge = boost::add_edge(right_start_vertex, *ind_vi, right_graph);
+			std::pair<Edge,bool> newEdge = boost::add_edge(mRightStartVertex, *ind_vi, right_graph);
 			right_graph[newEdge.first].length = startDist;
 			right_graph[newEdge.first].prior = 1.0;
 			right_graph[newEdge.first].isEvaluated = false;
@@ -686,9 +710,9 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 
 		if (goalDist < mConnectionRadius)
 		{
-			if(right_goal_vertex == *ind_vi)
+			if(mRightGoalVertex == *ind_vi)
 				continue;
-			std::pair<Edge,bool> newEdge = boost::add_edge(right_goal_vertex, *ind_vi, right_graph);
+			std::pair<Edge,bool> newEdge = boost::add_edge(mRightGoalVertex, *ind_vi, right_graph);
 			right_graph[newEdge.first].length = goalDist;
 			right_graph[newEdge.first].prior = 1.0;
 			right_graph[newEdge.first].isEvaluated = false;
@@ -721,20 +745,20 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	graph[mGoalVertex].visited = false;
 	graph[mGoalVertex].status = CollisionStatus::FREE;
 
-	// std::cout<<"DEBUG:"<<left_graph[left_start_vertex].vertex_index<<std::endl;
-	// std::cout<<left_graph[left_start_vertex].state<<std::endl;
+	// std::cout<<"DEBUG:"<<left_graph[mLeftStartVertex].vertex_index<<std::endl;
+	// std::cout<<left_graph[mLeftStartVertex].state<<std::endl;
 	// Populate the tensor product generator class
 	mTPG.populateMaps(left_graph,right_graph,graph,mStartVertex,mGoalVertex);
 
 	// getNeighbors(mStartVertex);
-	// std::cout<<"Left Edge Status: "<<edge(left_start_vertex, left_goal_vertex , left_graph).second<<std::endl;
-	// std::cout<<"Right Edge Status: "<<edge(right_start_vertex, right_goal_vertex , right_graph).second<<std::endl;
+	// std::cout<<"Left Edge Status: "<<edge(mLeftStartVertex, mLeftGoalVertex , left_graph).second<<std::endl;
+	// std::cout<<"Right Edge Status: "<<edge(mRightStartVertex, mRightGoalVertex , right_graph).second<<std::endl;
 	// std::cout<<"Composite Edge Status: "<<edge(mStartVertex, mGoalVertex , graph).second<<std::endl;
 
 	// size_t countval=0;
 	// std::cout<<"Nodes connected to left start vertex: ";
 	// NeighborIter ai, aiend;
-	// for (boost::tie(ai, aiend) = adjacent_vertices(left_start_vertex, left_graph); ai != aiend; ++ai) 
+	// for (boost::tie(ai, aiend) = adjacent_vertices(mLeftStartVertex, left_graph); ai != aiend; ++ai) 
 	// {
 	// 	std::cout<<left_graph[*ai].vertex_index<<" ";
 	// 	countval++;
@@ -743,7 +767,7 @@ void LazyCBS::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// std::cout<<countval<<std::endl;
 	// countval=0;
 	// std::cout<<"Nodes connected to right start vertex: ";
-	// for (boost::tie(ai, aiend) = adjacent_vertices(right_start_vertex, right_graph); ai != aiend; ++ai) 
+	// for (boost::tie(ai, aiend) = adjacent_vertices(mRightStartVertex, right_graph); ai != aiend; ++ai) 
 	// {
 	// 	std::cout<<right_graph[*ai].vertex_index<<" ";
 	// 	countval++;
@@ -1285,6 +1309,404 @@ double LazyCBS::heuristicFunction(CompositeVertex v) const
 double LazyCBS::estimateTotalCost(CompositeVertex v) const
 {
 	return estimateCostToCome(v) + heuristicFunction(v);
+}
+
+std::vector<Vertex> LazyCBS::leftComputeShortestPath(std::vector<Constraint> constraints, double& costOut)
+{
+	timePriorityQueue pq;
+	std::unordered_map<std::pair<Vertex, size_t>, double, pair_hash> distanceMap;
+	std::unordered_map<std::pair<Vertex, size_t> , std::pair<Vertex, size_t> , pair_hash > parentMap;
+	std::unordered_map<size_t , Vertex> nodeMap;
+
+	pq.insert(left_graph[mLeftStartVertex].vertex_index,0,0.0,0.0);
+	nodeMap[left_graph[mLeftStartVertex].vertex_index]=mLeftStartVertex;
+
+	VertexIter vi, viend;
+	distanceMap[std::make_pair(mLeftStartVertex,0)]=0;
+
+	size_t numSearches = 0;
+	size_t maximum_timestep = 10000;
+	while(pq.PQsize()!=0)
+	{
+		numSearches++;
+		// std::cout<<"Queue pop no: "<<numSearches<<std::endl;
+		std::pair<int,size_t> top_element = pq.pop();
+		size_t index = top_element.first;
+		size_t timestep = top_element.second;
+		// std::cout<<"Index: "<<index<<" Timestep: "<<timestep<<" Distance: "<<distanceMap[std::make_pair(nodeMap[index],timestep)] <<std::endl;
+		// if(parentMap.count(std::make_pair(nodeMap[index],timestep)))
+			// std::cout<<"Parent: "<<indexMap[parentMap[std::make_pair(nodeMap[index],timestep)].first] <<std::endl;
+		if(timestep > maximum_timestep)
+			break;
+		if(index == left_graph[mLeftGoalVertex].vertex_index)
+			break;
+		Vertex curr_node = nodeMap[index];
+
+		std::vector<Vertex> neighbors;
+		NeighborIter ai;
+		NeighborIter aiEnd;
+
+		for (tie(ai, aiEnd) = adjacent_vertices(curr_node, left_graph); ai != aiEnd; ++ai) 
+		{
+			Vertex curNeighbor = *ai;
+			neighbors.push_back(curNeighbor);
+		}
+
+		neighbors.push_back(curr_node);
+		// std::cout<<"No. of neighbors :"<<neighbors.size()<<std::endl;
+
+		for (auto successor : neighbors) 
+		{
+			// std::cout<<"Successor: "<<indexMap[successor]<<std::endl;
+			if(successor == curr_node)
+			{
+				double new_cost = distanceMap[std::make_pair(curr_node,timestep)] + PAUSE_PENALTY;
+				
+				if(distanceMap.count(std::make_pair(successor,timestep+1))==0 || 
+					new_cost < distanceMap[std::make_pair(successor,timestep+1)])
+				{
+					distanceMap[std::make_pair(successor,timestep+1)]= new_cost;
+					double priority;
+					// std::cout<<"FOUND FREE EDGE!!"<<std::endl;
+					priority = new_cost + (left_graph[successor].state-left_graph[mLeftGoalVertex].state).norm();
+					pq.insert(left_graph[successor].vertex_index,timestep+1,priority,0.0);
+					if(nodeMap.count(left_graph[successor].vertex_index)==0)
+						nodeMap[left_graph[successor].vertex_index]=successor;
+					parentMap[std::make_pair(successor,timestep+1)]=std::make_pair(curr_node,timestep);
+				}
+			}
+			else
+			{
+				Edge uv_edge = boost::edge(successor, curr_node, left_graph).first;
+
+				bool col=false;
+				for( Constraint c: constraints)
+				{
+					if( ((left_graph[boost::source(c.e,left_graph)].vertex_index==left_graph[boost::source(uv_edge,left_graph)].vertex_index 
+							&& left_graph[boost::target(c.e,left_graph)].vertex_index==left_graph[boost::target(uv_edge,left_graph)].vertex_index) 
+						|| (left_graph[boost::source(c.e,left_graph)].vertex_index==left_graph[boost::target(uv_edge,left_graph)].vertex_index 
+							&& left_graph[boost::target(c.e,left_graph)].vertex_index==left_graph[boost::source(uv_edge,left_graph)].vertex_index)) 
+						&& c.t == timestep)
+					{
+						std::cout<<"Constraint Encountered! "<<std::endl;
+						col =true;
+						break;
+					}
+					// else
+						// std::cout<<" No constraints!"<<timestep<<std::endl;
+				}
+
+				// std::cout<<"Col: "<<col<<std::endl;
+				if(!col)
+				{					
+					double new_cost = distanceMap[std::make_pair(curr_node,timestep)] + left_graph[uv_edge].length;
+					if(distanceMap.count(std::make_pair(successor,timestep+1))==0 || new_cost < distanceMap[std::make_pair(successor,timestep+1)])
+					{
+						distanceMap[std::make_pair(successor,timestep+1)]= new_cost;
+						double priority;
+						// std::cout<<"FOUND FREE EDGE!!"<<std::endl;
+						priority = new_cost + (left_graph[successor].state-left_graph[mLeftGoalVertex].state).norm();
+						pq.insert(left_graph[successor].vertex_index,timestep+1,priority,0.0);
+						if(nodeMap.count(left_graph[successor].vertex_index)==0)
+							nodeMap[left_graph[successor].vertex_index]=successor;
+						parentMap[std::make_pair(successor,timestep+1)]=std::make_pair(curr_node,timestep);
+					}
+				}
+			}
+		}
+	}
+
+	costOut = std::numeric_limits<double>::infinity();
+	int goal_timestep = -1;
+	for(size_t t = 0; t<maximum_timestep; t++)
+	{
+		if(distanceMap.count(std::make_pair(mLeftGoalVertex,t)))
+		{
+			if(distanceMap[std::make_pair(mLeftGoalVertex,t)]<costOut)
+				goal_timestep = t;
+		}
+	}
+	if(goal_timestep == -1)
+	{
+		std::cout<<"ALL_COL!"<<std::endl;
+		return std::vector<Vertex>();
+	}
+
+	costOut = distanceMap[std::make_pair(mLeftGoalVertex,goal_timestep)];
+
+	// std::cout<<"Goal Time: "<<goal_timestep<<std::endl;
+	std::vector<Vertex> finalPath;
+	Vertex node = mLeftGoalVertex;
+	// std::cout<<indexMap[parentMap[std::make_pair(node,goal_timestep)].first]<<std::endl;
+	while(node!=mLeftStartVertex)
+	{
+		// std::cout<<"Goal Time: "<<goal_timestep<<"Index:"<<indexMap[node];
+		// std::cin.get();
+		// std::cout<<"INF LOOP LOL!";
+		finalPath.push_back(node);
+		Vertex temp_node = node;
+		size_t temp_timestep = goal_timestep;
+		node=parentMap[std::make_pair(temp_node,temp_timestep)].first;
+		goal_timestep=parentMap[std::make_pair(temp_node,temp_timestep)].second;
+	}
+	finalPath.push_back(mLeftStartVertex);
+	std::reverse(finalPath.begin(), finalPath.end());
+	return finalPath;
+}
+
+std::vector<Vertex> LazyCBS::leftLazyComputeShortestPath(std::vector<Constraint> constraints, double& costOut)
+{
+
+	int numSearches = 0;
+	// std::cout<<"Input [ENTER] to start search: ";
+	// std::cin.get();
+	while(true)
+	{
+		numSearches++;
+
+		std::cout<< "[INFO]: Search "<<numSearches <<std::endl;
+		std::vector<Vertex> shortestPath = leftComputeShortestPath(constraints,costOut);
+		for(Vertex nodes: shortestPath )
+		 std::cout<<left_graph[nodes].vertex_index<<" ";
+		if( shortestPath.size()==0)
+		{
+			std::cout << "" <<std::endl;
+			// std::cout<< "[INFO]: ALL COLL" <<std::endl;
+			return std::vector<Vertex>();
+		}
+
+		bool collisionFree = true;
+		for( int i=0;i<shortestPath.size()-1;i++)
+		{
+			Vertex curU = shortestPath.at(i);
+			Vertex curV = shortestPath.at(i+1);
+
+			Edge curEdge = boost::edge(curU,curV,left_graph).first;
+
+			bool curEval = left_graph[curEdge].isEvaluated;
+
+			// std::cout<<std::endl<<"Eval: "<<curEval;
+
+			if(!curEval)
+			{
+				left_graph[curEdge].isEvaluated = true;
+				bool col= !evaluateLeftEdge(curEdge);
+
+				// std::cout<<" Col: "<<col;
+				// bool col =false;
+
+				if(col)
+				{
+					left_graph[curEdge].length = std::numeric_limits<double>::infinity();
+					collisionFree=false;
+					break;
+				}
+			}
+		}
+		if(collisionFree)
+		{
+			return shortestPath;
+		}
+	}
+}
+
+std::vector<Vertex> LazyCBS::rightComputeShortestPath(std::vector<Constraint> constraints, double& costOut)
+{
+	timePriorityQueue pq;
+	std::unordered_map<std::pair<Vertex, size_t>, double, pair_hash> distanceMap;
+	std::unordered_map<std::pair<Vertex, size_t> , std::pair<Vertex, size_t> , pair_hash > parentMap;
+	std::unordered_map<size_t , Vertex> nodeMap;
+
+	pq.insert(right_graph[mRightStartVertex].vertex_index,0,0.0,0.0);
+	nodeMap[right_graph[mRightStartVertex].vertex_index]=mRightStartVertex;
+
+	VertexIter vi, viend;
+	distanceMap[std::make_pair(mRightStartVertex,0)]=0;
+
+	size_t numSearches = 0;
+	size_t maximum_timestep = 10000;
+	while(pq.PQsize()!=0)
+	{
+		numSearches++;
+		// std::cout<<"Queue pop no: "<<numSearches<<std::endl;
+		std::pair<int,size_t> top_element = pq.pop();
+		size_t index = top_element.first;
+		size_t timestep = top_element.second;
+		// std::cout<<"Index: "<<index<<" Timestep: "<<timestep<<" Distance: "<<distanceMap[std::make_pair(nodeMap[index],timestep)] <<std::endl;
+		// if(parentMap.count(std::make_pair(nodeMap[index],timestep)))
+			// std::cout<<"Parent: "<<indexMap[parentMap[std::make_pair(nodeMap[index],timestep)].first] <<std::endl;
+		if(timestep > maximum_timestep)
+			break;
+		if(index == right_graph[mRightGoalVertex].vertex_index)
+			break;
+		Vertex curr_node = nodeMap[index];
+
+		std::vector<Vertex> neighbors;
+		NeighborIter ai;
+		NeighborIter aiEnd;
+
+		for (tie(ai, aiEnd) = adjacent_vertices(curr_node, right_graph); ai != aiEnd; ++ai) 
+		{
+			Vertex curNeighbor = *ai;
+			neighbors.push_back(curNeighbor);
+		}
+
+		neighbors.push_back(curr_node);
+		// std::cout<<"No. of neighbors :"<<neighbors.size()<<std::endl;
+
+		for (auto successor : neighbors) 
+		{
+			// std::cout<<"Successor: "<<indexMap[successor]<<std::endl;
+			if(successor == curr_node)
+			{
+				double new_cost = distanceMap[std::make_pair(curr_node,timestep)] + PAUSE_PENALTY;
+				
+				if(distanceMap.count(std::make_pair(successor,timestep+1))==0 || 
+					new_cost < distanceMap[std::make_pair(successor,timestep+1)])
+				{
+					distanceMap[std::make_pair(successor,timestep+1)]= new_cost;
+					double priority;
+					// std::cout<<"FOUND FREE EDGE!!"<<std::endl;
+					priority = new_cost + (right_graph[successor].state-right_graph[mRightGoalVertex].state).norm();
+					pq.insert(right_graph[successor].vertex_index,timestep+1,priority,0.0);
+					if(nodeMap.count(right_graph[successor].vertex_index)==0)
+						nodeMap[right_graph[successor].vertex_index]=successor;
+					parentMap[std::make_pair(successor,timestep+1)]=std::make_pair(curr_node,timestep);
+				}
+			}
+			else
+			{
+				Edge uv_edge = boost::edge(successor, curr_node, right_graph).first;
+
+				bool col=false;
+				for( Constraint c: constraints)
+				{
+					if( ((right_graph[boost::source(c.e,right_graph)].vertex_index==right_graph[boost::source(uv_edge,right_graph)].vertex_index 
+							&& right_graph[boost::target(c.e,right_graph)].vertex_index==right_graph[boost::target(uv_edge,right_graph)].vertex_index) 
+						|| (right_graph[boost::source(c.e,right_graph)].vertex_index==right_graph[boost::target(uv_edge,right_graph)].vertex_index 
+							&& right_graph[boost::target(c.e,right_graph)].vertex_index==right_graph[boost::source(uv_edge,right_graph)].vertex_index)) 
+						&& c.t == timestep)
+					{
+						std::cout<<"Constraint Encountered! "<<std::endl;
+						col =true;
+						break;
+					}
+					// else
+						// std::cout<<" No constraints!"<<timestep<<std::endl;
+				}
+
+				// std::cout<<"Col: "<<col<<std::endl;
+				if(!col)
+				{					
+					double new_cost = distanceMap[std::make_pair(curr_node,timestep)] + right_graph[uv_edge].length;
+					if(distanceMap.count(std::make_pair(successor,timestep+1))==0 || new_cost < distanceMap[std::make_pair(successor,timestep+1)])
+					{
+						distanceMap[std::make_pair(successor,timestep+1)]= new_cost;
+						double priority;
+						// std::cout<<"FOUND FREE EDGE!!"<<std::endl;
+						priority = new_cost + (right_graph[successor].state-right_graph[mRightGoalVertex].state).norm();
+						pq.insert(right_graph[successor].vertex_index,timestep+1,priority,0.0);
+						if(nodeMap.count(right_graph[successor].vertex_index)==0)
+							nodeMap[right_graph[successor].vertex_index]=successor;
+						parentMap[std::make_pair(successor,timestep+1)]=std::make_pair(curr_node,timestep);
+					}
+				}
+			}
+		}
+	}
+
+	costOut = std::numeric_limits<double>::infinity();
+	int goal_timestep = -1;
+	for(size_t t = 0; t<maximum_timestep; t++)
+	{
+		if(distanceMap.count(std::make_pair(mRightGoalVertex,t)))
+		{
+			if(distanceMap[std::make_pair(mRightGoalVertex,t)]<costOut)
+				goal_timestep = t;
+		}
+	}
+	if(goal_timestep == -1)
+	{
+		std::cout<<"ALL_COL!"<<std::endl;
+		return std::vector<Vertex>();
+	}
+
+	costOut = distanceMap[std::make_pair(mRightGoalVertex,goal_timestep)];
+
+	// std::cout<<"Goal Time: "<<goal_timestep<<std::endl;
+	std::vector<Vertex> finalPath;
+	Vertex node = mRightGoalVertex;
+	// std::cout<<indexMap[parentMap[std::make_pair(node,goal_timestep)].first]<<std::endl;
+	while(node!=mRightStartVertex)
+	{
+		// std::cout<<"Goal Time: "<<goal_timestep<<"Index:"<<indexMap[node];
+		// std::cin.get();
+		// std::cout<<"INF LOOP LOL!";
+		finalPath.push_back(node);
+		Vertex temp_node = node;
+		size_t temp_timestep = goal_timestep;
+		node=parentMap[std::make_pair(temp_node,temp_timestep)].first;
+		goal_timestep=parentMap[std::make_pair(temp_node,temp_timestep)].second;
+	}
+	finalPath.push_back(mRightStartVertex);
+	std::reverse(finalPath.begin(), finalPath.end());
+	return finalPath;
+}
+
+std::vector<Vertex> LazyCBS::rightLazyComputeShortestPath(std::vector<Constraint> constraints, double& costOut)
+{
+
+	int numSearches = 0;
+	// std::cout<<"Input [ENTER] to start search: ";
+	// std::cin.get();
+	while(true)
+	{
+		numSearches++;
+
+		std::cout<< "[INFO]: Search "<<numSearches <<std::endl;
+		std::vector<Vertex> shortestPath = rightComputeShortestPath(constraints,costOut);
+		for(Vertex nodes: shortestPath )
+		 std::cout<<right_graph[nodes].vertex_index<<" ";
+		if( shortestPath.size()==0)
+		{
+			std::cout << "" <<std::endl;
+			// std::cout<< "[INFO]: ALL COLL" <<std::endl;
+			return std::vector<Vertex>();
+		}
+
+		bool collisionFree = true;
+		for( int i=0;i<shortestPath.size()-1;i++)
+		{
+			Vertex curU = shortestPath.at(i);
+			Vertex curV = shortestPath.at(i+1);
+
+			Edge curEdge = boost::edge(curU,curV,right_graph).first;
+
+			bool curEval = right_graph[curEdge].isEvaluated;
+
+			// std::cout<<std::endl<<"Eval: "<<curEval;
+
+			if(!curEval)
+			{
+				right_graph[curEdge].isEvaluated = true;
+				bool col= !evaluateRightEdge(curEdge);
+
+				// std::cout<<" Col: "<<col;
+				// bool col =false;
+
+				if(col)
+				{
+					right_graph[curEdge].length = std::numeric_limits<double>::infinity();
+					collisionFree=false;
+					break;
+				}
+			}
+		}
+		if(collisionFree)
+		{
+			return shortestPath;
+		}
+	}
 }
 
 } // namespace LazyCBS
