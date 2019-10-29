@@ -38,22 +38,22 @@
 #include "BGLDefinitions.hpp"
 #include "LoadGraphfromFile.hpp"
 #include "tensorProductGenerator.hpp"
-
+#include "heap_indexed.hpp"
 // namespace std //As  we are using map with Eigen::VectorXd as key!
 // {
-// 	template<> struct less<Eigen::VectorXd>
-// 	{
-// 		bool operator() (Eigen::VectorXd const& a, Eigen::VectorXd const& b) const
-// 		{
-// 			assert(a.size()==b.size());
-// 			for(size_t i=0;i<a.size();++i)
-// 			{
-// 				if(a[i]<b[i]) return true;
-// 				if(a[i]>b[i]) return false;
-// 			}
-// 			return false;
-// 		}
-// 	};
+//  template<> struct less<Eigen::VectorXd>
+//  {
+//      bool operator() (Eigen::VectorXd const& a, Eigen::VectorXd const& b) const
+//      {
+//          assert(a.size()==b.size());
+//          for(size_t i=0;i<a.size();++i)
+//          {
+//              if(a[i]<b[i]) return true;
+//              if(a[i]>b[i]) return false;
+//          }
+//          return false;
+//      }
+//  };
 // }
 namespace MINT {
 
@@ -76,30 +76,30 @@ void displayGraph(CompositeGraph &graph)
 				double* u = graph[source(*ei, graph)].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;  
 				double* v = graph[target(*ei, graph)].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;  
 
-	    		cv::Point left_uPoint((int)(u[0]*numberOfColumns), (int)((1 - u[1])*numberOfRows));
-			    cv::Point left_vPoint((int)(v[0]*numberOfColumns), (int)((1 - v[1])*numberOfRows));
+				cv::Point left_uPoint((int)(u[0]*numberOfColumns), (int)((1 - u[1])*numberOfRows));
+				cv::Point left_vPoint((int)(v[0]*numberOfColumns), (int)((1 - v[1])*numberOfRows));
 
-			    cv::line(image, left_uPoint, left_vPoint, cv::Scalar(255, 0, 0), 3);
+				cv::line(image, left_uPoint, left_vPoint, cv::Scalar(255, 0, 0), 3);
 			  
-			    cv::Point right_uPoint((int)(u[2]*numberOfColumns), (int)((1 - u[3])*numberOfRows));
-			    cv::Point right_vPoint((int)(v[2]*numberOfColumns), (int)((1 - v[3])*numberOfRows));
+				cv::Point right_uPoint((int)(u[2]*numberOfColumns), (int)((1 - u[3])*numberOfRows));
+				cv::Point right_vPoint((int)(v[2]*numberOfColumns), (int)((1 - v[3])*numberOfRows));
 
-			    cv::line(image, right_uPoint, right_vPoint, cv::Scalar(255, 0, 0), 3);
+				cv::line(image, right_uPoint, right_vPoint, cv::Scalar(255, 0, 0), 3);
 			}
 			else
 			{
 				double* u = graph[source(*ei, graph)].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;  
 				double* v = graph[target(*ei, graph)].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;  
 
-	    		cv::Point left_uPoint((int)(u[0]*numberOfColumns), (int)((1 - u[1])*numberOfRows));
-			    cv::Point left_vPoint((int)(v[0]*numberOfColumns), (int)((1 - v[1])*numberOfRows));
+				cv::Point left_uPoint((int)(u[0]*numberOfColumns), (int)((1 - u[1])*numberOfRows));
+				cv::Point left_vPoint((int)(v[0]*numberOfColumns), (int)((1 - v[1])*numberOfRows));
 
-			    cv::line(image, left_uPoint, left_vPoint, cv::Scalar(0, 0, 255), 3);
+				cv::line(image, left_uPoint, left_vPoint, cv::Scalar(0, 0, 255), 3);
 			  
-			    cv::Point right_uPoint((int)(u[2]*numberOfColumns), (int)((1 - u[3])*numberOfRows));
-			    cv::Point right_vPoint((int)(v[2]*numberOfColumns), (int)((1 - v[3])*numberOfRows));
+				cv::Point right_uPoint((int)(u[2]*numberOfColumns), (int)((1 - u[3])*numberOfRows));
+				cv::Point right_vPoint((int)(v[2]*numberOfColumns), (int)((1 - v[3])*numberOfRows));
 
-			    cv::line(image, right_uPoint, right_vPoint, cv::Scalar(0, 0, 255), 3);
+				cv::line(image, right_uPoint, right_vPoint, cv::Scalar(0, 0, 255), 3);
 			}
 		}
 	}
@@ -135,17 +135,17 @@ void displayPath(CompositeGraph &graph, std::vector<CompositeVertex> shortestPat
 
 // template<typename T>
 // struct matrix_hash : std::unary_function<T, size_t> {
-// 	std::size_t operator()(T const& matrix) const {
-// 		// Note that it is oblivious to the storage order of Eigen matrix (column- or
-// 		// row-major). It will give you the same hash value for two different matrices if they
-// 		// are the transpose of each other in different storage order.
-// 		size_t seed = 0;
-// 		for (size_t i = 0; i < matrix.size(); ++i) {
-// 			auto elem = *(matrix.data() + i);
-// 			seed ^= std::hash<typename T::Scalar>()(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-// 		}
-// 		return seed;
-// 	}
+//  std::size_t operator()(T const& matrix) const {
+//      // Note that it is oblivious to the storage order of Eigen matrix (column- or
+//      // row-major). It will give you the same hash value for two different matrices if they
+//      // are the transpose of each other in different storage order.
+//      size_t seed = 0;
+//      for (size_t i = 0; i < matrix.size(); ++i) {
+//          auto elem = *(matrix.data() + i);
+//          seed ^= std::hash<typename T::Scalar>()(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+//      }
+//      return seed;
+//  }
 // };
 
 /// The OMPL Planner class that implements the algorithm
@@ -270,6 +270,9 @@ private:
 	//// Used to populate the CompositeGraph
 	TensorPG mTPG;
 
+	/// LPASTAr
+	heap_indexed< std::pair<double,double> > queue;
+
 	/// Roadmap
 	// boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>> roadmapPtr;
 
@@ -374,6 +377,17 @@ private:
 
 	/// A Star
 	std::vector<CompositeVertex> AStar();
+
+
+	/// LPAStar 
+	std::vector<CompositeVertex> compute_shortest_path(double& costOut);
+	void update_vertex(CompositeVertex u);
+	bool update_predecessor(CompositeVertex u, CompositeVertex v, double uv_weight);
+	std::pair<double,double> calculate_key(CompositeVertex u, bool do_goal_margin);
+	void reset();
+	bool areEqual( double a, double b);
+	std::vector<CompositeVertex> followBackpointers(double& costOut);
+
 }; // class MINT
 
 } // namespace MINT
@@ -561,15 +575,15 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	double* startValues = startState->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;  
 
 	// std::cout<<startValues[0]<<std::endl<<startValues[1]<<std::endl<<startValues[2]
-	// 	<<std::endl<<startValues[3]<<std::endl<<startValues[4]<<std::endl<<startValues[5]
-	// 	<<std::endl<<startValues[6]<<std::endl;
+	//  <<std::endl<<startValues[3]<<std::endl<<startValues[4]<<std::endl<<startValues[5]
+	//  <<std::endl<<startValues[6]<<std::endl;
 	Eigen::VectorXd left_start_config(mSpace->getDimension()/2);
 	for (size_t ui = 0; ui < mSpace->getDimension()/2; ui++)
 	{
 		left_start_config[ui] = startValues[ui];
 	}
 	// left_start_config << startValues[0], startValues[1], startValues[2], startValues[3],
-	// 	startValues[4], startValues[5], startValues[6];
+	//  startValues[4], startValues[5], startValues[6];
 
 	Eigen::VectorXd right_start_config(mSpace->getDimension()/2);
 	for (size_t ui = mSpace->getDimension()/2; ui < mSpace->getDimension(); ui++)
@@ -587,7 +601,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 		left_goal_config[ui] = goalValues[ui];
 	}
 	// left_goal_config << goalValues[0], goalValues[1], goalValues[2], goalValues[3],
-	// 	goalValues[4], goalValues[5], goalValues[6];
+	//  goalValues[4], goalValues[5], goalValues[6];
 
 	Eigen::VectorXd right_goal_config(mSpace->getDimension()/2);
 	for (size_t ui = mSpace->getDimension()/2; ui < mSpace->getDimension(); ui++)
@@ -595,7 +609,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 		right_goal_config[ui-mSpace->getDimension()/2] = goalValues[ui];
 	}
 	// right_goal_config << goalValues[7], goalValues[8], goalValues[9], goalValues[10],
-	// 	goalValues[11], goalValues[12], goalValues[13];
+	//  goalValues[11], goalValues[12], goalValues[13];
 
 	// start and goal added to left graph 
 
@@ -735,8 +749,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// NeighborIter ai, aiend;
 	// for (boost::tie(ai, aiend) = adjacent_vertices(left_start_vertex, left_graph); ai != aiend; ++ai) 
 	// {
-	// 	std::cout<<left_graph[*ai].vertex_index<<" ";
-	// 	countval++;
+	//  std::cout<<left_graph[*ai].vertex_index<<" ";
+	//  countval++;
 	// }
 	// std::cout<<std::endl;
 	// std::cout<<countval<<std::endl;
@@ -744,8 +758,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// std::cout<<"Nodes connected to right start vertex: ";
 	// for (boost::tie(ai, aiend) = adjacent_vertices(right_start_vertex, right_graph); ai != aiend; ++ai) 
 	// {
-	// 	std::cout<<right_graph[*ai].vertex_index<<" ";
-	// 	countval++;
+	//  std::cout<<right_graph[*ai].vertex_index<<" ";
+	//  countval++;
 	// }
 	// std::cout<<std::endl;
 	// std::cout<<countval<<std::endl;
@@ -754,8 +768,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// CompositeNeighborIter aic, aiendc;
 	// for (boost::tie(aic, aiendc) = adjacent_vertices(mStartVertex, graph); aic != aiendc; ++aic) 
 	// {
-	// 	std::cout<<graph[*aic].vertex_index<<" ";
-	// 	countval++;
+	//  std::cout<<graph[*aic].vertex_index<<" ";
+	//  countval++;
 	// }
 	// std::cout<<std::endl;
 	// std::cout<<countval<<std::endl;
@@ -787,8 +801,8 @@ std::vector<CompositeVertex> MINT::getNeighbors(CompositeVertex &v)
 	}
 
 	// goal_config << goal_values[0], goal_values[1], goal_values[2], goal_values[3], goal_values[4],
-	// 	goal_values[5], goal_values[6], goal_values[7], goal_values[8], goal_values[9], 
-	// 	goal_values[10], goal_values[11], goal_values[12], goal_values[13];
+	//  goal_values[5], goal_values[6], goal_values[7], goal_values[8], goal_values[9], 
+	//  goal_values[10], goal_values[11], goal_values[12], goal_values[13];
 
 	// std::cout<<"Calling implicit neighbors!"<<std::endl;
 	
@@ -801,7 +815,7 @@ std::vector<CompositeVertex> MINT::getNeighbors(CompositeVertex &v)
 	// CompositeNeighborIter ai, aiend;
 	// for (boost::tie(ai, aiend) = adjacent_vertices(v, graph); ai != aiend; ++ai) 
 	// {
-	// 	neighbors.push_back(*ai);
+	//  neighbors.push_back(*ai);
 	// }
 	// return neighbors;
 }
@@ -820,7 +834,7 @@ std::vector<CompositeVertex> MINT::AStar()
 	std::chrono::duration<double> queue_elapsed_seconds;
 	std::chrono::duration<double> neighbors_manip_elapsed_seconds;
 	std::chrono::duration<double> get_edge_elapsed_seconds;
-	// 	std::cout<<"Press [ENTER] to continue:";
+	//  std::cout<<"Press [ENTER] to continue:";
 	// std::cin.get();
 	// Set default vertex values.
 	CompositeVertexIter vi, vi_end;
@@ -834,7 +848,7 @@ std::vector<CompositeVertex> MINT::AStar()
 
 	graph[mStartVertex].distance = 0;
 	// graph[mStartVertex].heuristic = std::max((left_start_config- left_goal_config).norm(),
-	// 	(right_start_config - right_goal_config).norm()) ;
+	//  (right_start_config - right_goal_config).norm()) ;
 	graph[mStartVertex].parent = -1;
 
 	// graph[mGoalVertex].heuristic = 0;
@@ -954,7 +968,7 @@ std::vector<CompositeVertex> MINT::AStar()
 	elapsed_seconds = (end_time - start_time);
 	// std::cout<<" Number of Iterations: "<<iteration<<std::endl;
 	// std::cout<<" Number of neighbors: "<<num_of_neighbors<<std::endl;
-    // std::cout<< "Time taken for iteration: " << elapsed_seconds.count() << "s\n"; 
+	// std::cout<< "Time taken for iteration: " << elapsed_seconds.count() << "s\n"; 
  //    std::cout<< "Time taken for getNeighbors: "<<neighbors_elapsed_seconds.count()<<"s\n";
  //    std::cout<< "Time taken for queue: " << queue_elapsed_seconds.count() << "s\n"; 
  //    std::cout<< "Time taken for neighbors manipulation: " << neighbors_manip_elapsed_seconds.count() << "s\n"; 
@@ -980,13 +994,13 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 		// double pathLength=0;
 		// for(size_t i=0; i<shortestPath.size()-1; i++)
 		// {
-		// 	CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));			
-		// 	pathLength+=graph[uv].length;
+		//  CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
+		//  pathLength+=graph[uv].length;
 		// }
 		// std::cout<<"Path Length: "<<pathLength<<" ";
 		// std::cout<<"Path: ";
 		// for(Vertex &nodes: shortestPath )
-		// 	std::cout<<graph[nodes].vertex_index<<" ";
+		//  std::cout<<graph[nodes].vertex_index<<" ";
 		// std::cout<<std::endl<<std::endl;
 		// displayPath(graph,shortestPath);
 		if(shortestPath.size()==0)
@@ -995,14 +1009,14 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 		solutionFound = true;
 		for(size_t i=0; i<shortestPath.size()-1; i++)
 		{
-			CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));			
+			CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
 			if(!graph[uv].isEvaluated)
 			{
 				graph[uv].isEvaluated = true;
 				if(!evaluateEdge(uv))
 				{
 					// std::cout<<"Edge between"<<graph[shortestPath.at(i)].vertex_index<<" and "
-					// 	<<graph[shortestPath.at(i+1)].vertex_index<<" is in collision."<<std::endl;
+					//  <<graph[shortestPath.at(i+1)].vertex_index<<" is in collision."<<std::endl;
 					graph[uv].length = std::numeric_limits<double>::infinity();
 					solutionFound = false;
 					break;
@@ -1012,7 +1026,7 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 	}
 	// std::vector<CompositeVertex> shortestPath = AStar();
 	// if(shortestPath.size()==0)
-	// 	OMPL_INFORM("Solution NOT PRESENT!");
+	//  OMPL_INFORM("Solution NOT PRESENT!");
 
 	std::chrono::time_point<std::chrono::system_clock> endTime{std::chrono::system_clock::now()};
 	std::chrono::duration<double> elapsedSeconds{endTime-startTime};
@@ -1022,10 +1036,10 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 	{
 		OMPL_INFORM("Solution Found!");
 		mBestPathCost = estimateCostToCome(mGoalVertex);
-		pdef_->addSolutionPath(constructSolution(mStartVertex, mGoalVertex));	
+		pdef_->addSolutionPath(constructSolution(mStartVertex, mGoalVertex));   
 		OMPL_INFORM("Graph Size:     #Vertices:%d        #Edges:%d",num_vertices(graph),num_edges(graph));
 		OMPL_INFORM("Search Time:                 %f", elapsedSeconds.count());
-		OMPL_INFORM("Number of Iterations:        %d", numSearches);	
+		OMPL_INFORM("Number of Iterations:        %d", numSearches);    
 		OMPL_INFORM("Number of Edges Evaluated:   %d", mNumEdgeEvals);
 		OMPL_INFORM("Cost of goal:                %f", mBestPathCost);
 
@@ -1261,29 +1275,212 @@ double MINT::heuristicFunction(CompositeVertex v) const
 	return graph[v].heuristic;
 	// return mSpace->distance(graph[v].state->state, graph[mGoalVertex].state->state);
 	// double* config_values = 
-	// 	graph[v].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+	//  graph[v].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
 
 	// Eigen::VectorXd composite_config(14);
 	// composite_config << config_values[0],config_values[1],config_values[2],config_values[3],
-	// 	config_values[4],config_values[5],config_values[6],config_values[7],
-	// 	config_values[8],config_values[9],config_values[10],config_values[11],
-	// 	config_values[12],config_values[13];
+	//  config_values[4],config_values[5],config_values[6],config_values[7],
+	//  config_values[8],config_values[9],config_values[10],config_values[11],
+	//  config_values[12],config_values[13];
 
 	// double* goal_config_values = 
-	// 	graph[mGoalVertex].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+	//  graph[mGoalVertex].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
 
 	// Eigen::VectorXd goal_composite_config(14);
 	// goal_composite_config << goal_config_values[0],goal_config_values[1],goal_config_values[2],goal_config_values[3],
-	// 	goal_config_values[4],goal_config_values[5],goal_config_values[6],goal_config_values[7],
-	// 	goal_config_values[8],goal_config_values[9],goal_config_values[10],goal_config_values[11],
-	// 	goal_config_values[12],goal_config_values[13];
+	//  goal_config_values[4],goal_config_values[5],goal_config_values[6],goal_config_values[7],
+	//  goal_config_values[8],goal_config_values[9],goal_config_values[10],goal_config_values[11],
+	//  goal_config_values[12],goal_config_values[13];
 	// return std::max((composite_config.segment(0,7)-goal_composite_config.segment(7,7)).norm(),
-	// 						(composite_config.segment(7,7)-goal_composite_config.segment(7,7)).norm());
+	//                      (composite_config.segment(7,7)-goal_composite_config.segment(7,7)).norm());
 }
 
 double MINT::estimateTotalCost(CompositeVertex v) const
 {
 	return estimateCostToCome(v) + heuristicFunction(v);
+}
+
+
+////////////////////////////////////LPAStar
+
+bool MINT::areEqual( double a, double b)
+{
+	double epsilon = 1e-9;
+	if( (a == std::numeric_limits<double>::infinity() && b == std::numeric_limits<double>::infinity())
+		 || fabs(a - b) < epsilon )
+		return true;
+	return false;
+}
+
+void MINT::reset()
+{
+  CompositeVertexIter vi, vi_end;
+  for (boost::tie(vi,vi_end)=vertices(graph); vi!=vi_end; ++vi)
+  {
+	 graph[*vi].distance_lookahead = std::numeric_limits<double>::infinity();
+	 graph[*vi].distance = std::numeric_limits<double>::infinity();
+  }
+  graph[mStartVertex].parent = mStartVertex;
+  graph[mStartVertex].distance_lookahead = 0;
+  queue.reset();
+  queue.insert(graph[mStartVertex].vertex_index, std::make_pair(heuristicFunction(mStartVertex),0));
+}
+
+std::pair<double,double> MINT::calculate_key(CompositeVertex u, bool do_goal_margin=false)
+{
+  double minval = std::min(graph[u].distance, graph[u].distance_lookahead);
+  // if (do_goal_margin)
+	 // minval += goal_margin;
+  return std::make_pair(minval+heuristicFunction(u), minval);
+}
+
+bool MINT::update_predecessor(CompositeVertex u, CompositeVertex v, double uv_weight)
+{
+  if (v == mStartVertex)
+	 return false;
+  
+  CompositeVertex v_pred = graph[v].parent;
+  double v_look_old = graph[v].distance_lookahead;
+  double v_look_u = graph[u].distance + uv_weight;
+  
+  if (v_pred == u) // u was previously relied upon
+  {
+	 // if dist through u decreased, then u is still best; just update value
+	 if (areEqual(v_look_u, v_look_old))
+	 {
+		return false;
+	 }
+	 else if (v_look_u < v_look_old)
+	 {
+		graph[v].distance_lookahead = v_look_u;
+		return true;
+	 }
+	 else // dist through u increased
+	 {
+		// so we need to search for a potentially new best predecessessor
+		double v_look_best = std::numeric_limits<double>::infinity();
+		CompositeVertex v_pred_best;
+		CompositeInEdgeIter ei, ei_end;
+		
+		for (boost::tie(ei,ei_end)=in_edges(v,graph); ei!=ei_end; ei++)
+		{
+		   double v_look_uu = graph[source(*ei,graph)].distance + graph[*ei].length;
+		   
+		   if (v_look_uu < v_look_best)
+		   {
+			  v_look_best = v_look_uu;
+			  v_pred_best = source(*ei,graph);
+		   }
+		}
+		if ( v_look_best != std::numeric_limits<double>::infinity() ) 
+		   graph[v].parent = v_pred_best;
+		
+		if (areEqual(v_look_best,v_look_old))
+		{
+		   return false;
+		}
+		else
+		{
+		   graph[v].distance_lookahead = v_look_best;
+		   return true;
+		}
+	 }
+  }
+  else // some other (existing) predecessor was used by v
+  {
+	 if ( !areEqual(v_look_u,v_look_old) && v_look_u < v_look_old) // dist through u is better
+	 {
+		graph[v].parent = u;
+		graph[v].distance_lookahead = v_look_u;
+		return true;
+	 }
+	 else // u is not better
+	 {
+		return false;
+	 }
+  }
+}
+
+void MINT::update_vertex(CompositeVertex u)
+{
+  double u_dist = graph[u].distance;
+  bool is_consistent = areEqual(u_dist,graph[u].distance_lookahead);
+  size_t u_idx = graph[u].vertex_index;
+  if (is_consistent)
+  {
+	 if (queue.contains(u_idx))
+		queue.remove(u_idx);
+  }
+  else // not consistent
+  {
+	 if (queue.contains(u_idx))
+		queue.update(u_idx, calculate_key(u));
+	 else
+		queue.insert(u_idx, calculate_key(u));
+  }
+}
+
+std::vector<CompositeVertex> MINT::followBackpointers(double& costOut) 
+{
+
+  costOut = graph[mGoalVertex].distance;
+
+  // Check if we actually reached the goal vertex. If we didn't, fail and
+  // cry (by returning an empty vector).
+  if (costOut == std::numeric_limits<double>::infinity())
+    return std::vector<CompositeVertex>();
+
+  std::vector<CompositeVertex> path;
+  path.push_back(mGoalVertex);
+  CompositeVertex curBack = graph[mGoalVertex].parent;
+
+  while (curBack != mStartVertex) {
+    path.push_back(curBack);
+    curBack = graph[curBack].parent;
+  }
+  path.push_back(mStartVertex);
+
+  std::reverse(path.begin(), path.end());
+  return path;
+}
+
+
+std::vector<CompositeVertex> MINT::compute_shortest_path(double& costOut)
+{
+  while (queue.size() && (queue.top_key() < calculate_key(mGoalVertex,true) // do_goal_margin
+	 || !areEqual(graph[mGoalVertex].distance_lookahead,graph[mGoalVertex].distance) ) )
+  {
+	 CompositeVertex u = vertex(queue.top_idx(), graph);
+	 
+	 // vis.examine_vertex(u, g);
+	 queue.remove_min();
+	 if ( !areEqual(graph[u].distance, graph[u].distance_lookahead) && graph[u].distance > graph[u].distance_lookahead)
+	 {
+		graph[u].distance = graph[u].distance_lookahead;
+		CompositeOutEdgeIter ei, ei_end;
+		for (boost::tie(ei,ei_end)=out_edges(u,graph); ei!=ei_end; ei++)
+		{
+		   CompositeVertex v = target(*ei,graph);
+		   bool lookahead_changed = update_predecessor(u, v, graph[*ei].length);
+		   if (lookahead_changed)
+			  update_vertex(v);
+		}
+	 }
+	 else
+	 {
+		graph[u].distance = std::numeric_limits<double>::infinity();
+		update_vertex(u);
+		CompositeOutEdgeIter ei, ei_end;
+		for (boost::tie(ei,ei_end)=out_edges(u,graph); ei!=ei_end; ei++)
+		{
+		   CompositeVertex v = target(*ei,graph);
+		   bool lookahead_changed = update_predecessor(u, v, graph[*ei].length);
+		   if (lookahead_changed)
+			  update_vertex(v);
+		}
+	 }
+  }
+  return followBackpointers(costOut);
 }
 
 } // namespace MINT

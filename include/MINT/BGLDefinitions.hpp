@@ -44,6 +44,9 @@ namespace BGL_DEFINITIONS {
     /// Cost-to-Come
     double distance = std::numeric_limits<double>::infinity();
 
+    /// Cost-to-Come
+    double distance_lookahead = std::numeric_limits<double>::infinity();
+
     /// Heuristic value
     double heuristic = std::numeric_limits<double>::infinity();
 
@@ -96,6 +99,12 @@ namespace BGL_DEFINITIONS {
 
   /// Boost edge iterator
   typedef boost::graph_traits<CompositeGraph>::edge_iterator CompositeEdgeIter;
+
+  /// Boost InEdge iterator
+  typedef boost::graph_traits<CompositeGraph>::in_edge_iterator CompositeInEdgeIter;
+
+  /// Boost OutEdge iterator
+  typedef boost::graph_traits<CompositeGraph>::out_edge_iterator CompositeOutEdgeIter;
 
   /// Boost graph neighbor iterator
   typedef boost::graph_traits<CompositeGraph>::adjacency_iterator CompositeNeighborIter;
