@@ -136,7 +136,8 @@ int main(int argc, char *argv[])
       ("obstaclefile,o", po::value<std::string>()->default_value(""), "Path to Obstacles File")
       ("source,s", po::value<std::vector<float> >()->multitoken(), "source configuration")
       ("target,t", po::value<std::vector<float> >()->multitoken(), "target configuration")
-      ("display,d", po::bool_switch()->default_value(true), "Enable to display final path")
+      ("display,d", po::bool_switch()->default_value(false), "Enable to display final path")
+      ("LPAStar", po::bool_switch()->default_value(false), "Enable to use LPAStar as planner")
   ;
 
   // Read arguments
@@ -162,6 +163,7 @@ int main(int argc, char *argv[])
   std::vector<float> source(vm["source"].as<std::vector< float> >());
   std::vector<float> target(vm["target"].as<std::vector< float> >());
   bool display(vm["display"].as<bool>());
+  bool useLPAStar(vm["LPAStar"].as<bool>());
 
   // Define the state space: R^2
   std::shared_ptr<ompl::base::RealVectorStateSpace> space(
@@ -183,31 +185,63 @@ int main(int argc, char *argv[])
   pdef->addStartState(make_state(space, source[0], source[1], source[2], source[3]));
   pdef->setGoalState(make_state(space, target[0], target[1], target[2], target[3]));
 
-  // Setup planner
-  MINT::MINT planner(si, left_graph_file,right_graph_file);
-
-  planner.setup();
-  planner.setProblemDefinition(pdef);
-
-  std::cout<<"CALLING SOLVE!"<<std::endl;
-  // Solve the motion planning problem
-  ompl::base::PlannerStatus status;
-  status = planner.solve(ompl::base::plannerNonTerminatingCondition());
-
-  if (display)
+  if(useLPAStar)
   {
-    // Display path and specify path size
-    if (status == ompl::base::PlannerStatus::EXACT_SOLUTION)
+    // Setup planner
+    MINT::MINT planner(std::string("LPAStar"), si, left_graph_file,right_graph_file);
+
+    planner.setup();
+    planner.setProblemDefinition(pdef);
+
+    std::cout<<"CALLING SOLVE!"<<std::endl;
+    // Solve the motion planning problem
+    ompl::base::PlannerStatus status;
+    status = planner.solve(ompl::base::plannerNonTerminatingCondition());
+
+    if (display)
     {
-      auto path = std::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
-                                                              pdef->getSolutionPath());
-      displayPath(obstacle_file, path);
+      // Display path and specify path size
+      if (status == ompl::base::PlannerStatus::EXACT_SOLUTION)
+      {
+        auto path = std::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
+                                                                pdef->getSolutionPath());
+        displayPath(obstacle_file, path);
+      }
+    }
+    else
+    {
+      // Get planner data if required
+      std::cout << "Exiting Cleanly" << std::endl;
     }
   }
   else
   {
-    // Get planner data if required
-    std::cout << "Exiting Cleanly" << std::endl;
+    // Setup planner
+    MINT::MINT planner(std::string("LazySP"), si, left_graph_file,right_graph_file);
+
+    planner.setup();
+    planner.setProblemDefinition(pdef);
+
+    std::cout<<"CALLING SOLVE!"<<std::endl;
+    // Solve the motion planning problem
+    ompl::base::PlannerStatus status;
+    status = planner.solve(ompl::base::plannerNonTerminatingCondition());
+
+    if (display)
+    {
+      // Display path and specify path size
+      if (status == ompl::base::PlannerStatus::EXACT_SOLUTION)
+      {
+        auto path = std::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
+                                                                pdef->getSolutionPath());
+        displayPath(obstacle_file, path);
+      }
+    }
+    else
+    {
+      // Get planner data if required
+      std::cout << "Exiting Cleanly" << std::endl;
+    }
   }
 
   return 0;

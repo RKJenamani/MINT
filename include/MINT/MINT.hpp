@@ -159,7 +159,7 @@ public:
 	/// \param[in] si The OMPL space information manager
 	/// \param[in] roadmapFileName The path to the .graphml file that encodes the roadmap.
 	/// \param[in] greediness The greediness to evaluate lazy shortest paths. Default is 1.
-	MINT(const ompl::base::SpaceInformationPtr &si,
+	MINT(std::string plannerName, const ompl::base::SpaceInformationPtr &si,
 		const std::string& leftRoadmapFileName, const std::string& rightRoadmapFileName);
 
 	/// Destructor
@@ -272,6 +272,10 @@ private:
 
 	/// LPASTAr
 	heap_indexed< std::pair<double,double> > queue;
+
+	/// Planner Name
+
+	std::string mPlannerName;
 
 	/// Roadmap
 	// boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>> roadmapPtr;
@@ -410,9 +414,10 @@ MINT::MINT(const ompl::base::SpaceInformationPtr &si)
 	Planner::declareParam<std::string>("rightRoadmapFilename", this, &MINT::setRightRoadmapFileName, &MINT::getRightRoadmapFileName);
 }
 
-MINT::MINT(const ompl::base::SpaceInformationPtr &si,
+MINT::MINT(std::string plannerName, const ompl::base::SpaceInformationPtr &si,
 	const std::string& leftRoadmapFileName, const std::string& rightRoadmapFileName)
-	: ompl::base::Planner(si, "MINT")
+	: mPlannerName(plannerName)
+	, ompl::base::Planner(si, "MINT")
 	, mSpace(si->getStateSpace())
 	, mLeftRoadmapFileName(leftRoadmapFileName)
 	, mRightRoadmapFileName(rightRoadmapFileName)
@@ -980,30 +985,31 @@ std::vector<CompositeVertex> MINT::AStar()
 ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondition & ptc)
 {
 	std::cout<<"IN SOLVE:!"<<std::endl;
+	std::cout<<"using "<<mPlannerName<<std::endl;
 	bool solutionFound = false;
 
 	// Log Time
 	std::chrono::time_point<std::chrono::system_clock> startTime{std::chrono::system_clock::now()};
 
 	size_t numSearches=0;
-	if(false)
+	if(mPlannerName == "LazySP")
 	{
 		while(!solutionFound)
 		{
 			std::cout<<"Search: "<<++numSearches<<std::endl;
 			std::vector<CompositeVertex> shortestPath = AStar();
-			// std::cout<<"Graph Size- #Vertices: "<<num_vertices(graph)<<" #Edges: "<<num_edges(graph)<<std::endl;
-			// double pathLength=0;
-			// for(size_t i=0; i<shortestPath.size()-1; i++)
-			// {
-			//  CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
-			//  pathLength+=graph[uv].length;
-			// }
-			// std::cout<<"Path Length: "<<pathLength<<" ";
-			// std::cout<<"Path: ";
-			// for(Vertex &nodes: shortestPath )
-			//  std::cout<<graph[nodes].vertex_index<<" ";
-			// std::cout<<std::endl<<std::endl;
+			std::cout<<"Graph Size- #Vertices: "<<num_vertices(graph)<<" #Edges: "<<num_edges(graph)<<std::endl;
+			double pathLength=0;
+			for(size_t i=0; i<shortestPath.size()-1; i++)
+			{
+			 CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
+			 pathLength+=graph[uv].length;
+			}
+			std::cout<<"Path Length: "<<pathLength<<" ";
+			std::cout<<"Path: ";
+			for(Vertex &nodes: shortestPath )
+			 std::cout<<graph[nodes].vertex_index<<" ";
+			std::cout<<std::endl<<std::endl;
 			// displayPath(graph,shortestPath);
 			if(shortestPath.size()==0)
 				break;
