@@ -384,7 +384,7 @@ private:
 	void update_vertex(CompositeVertex u);
 	bool update_predecessor(CompositeVertex u, CompositeVertex v, double uv_weight);
 	std::pair<double,double> calculate_key(CompositeVertex u, bool do_goal_margin);
-	void reset();
+	void initLPA();
 	bool areEqual( double a, double b);
 	std::vector<CompositeVertex> followBackpointers(double& costOut);
 
@@ -986,40 +986,43 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 	std::chrono::time_point<std::chrono::system_clock> startTime{std::chrono::system_clock::now()};
 
 	size_t numSearches=0;
-	while(!solutionFound)
+	if(false)
 	{
-		// std::cout<<"Search: "<<++numSearches<<std::endl;
-		std::vector<CompositeVertex> shortestPath = AStar();
-		// std::cout<<"Graph Size- #Vertices: "<<num_vertices(graph)<<" #Edges: "<<num_edges(graph)<<std::endl;
-		// double pathLength=0;
-		// for(size_t i=0; i<shortestPath.size()-1; i++)
-		// {
-		//  CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
-		//  pathLength+=graph[uv].length;
-		// }
-		// std::cout<<"Path Length: "<<pathLength<<" ";
-		// std::cout<<"Path: ";
-		// for(Vertex &nodes: shortestPath )
-		//  std::cout<<graph[nodes].vertex_index<<" ";
-		// std::cout<<std::endl<<std::endl;
-		// displayPath(graph,shortestPath);
-		if(shortestPath.size()==0)
-			break;
-
-		solutionFound = true;
-		for(size_t i=0; i<shortestPath.size()-1; i++)
+		while(!solutionFound)
 		{
-			CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
-			if(!graph[uv].isEvaluated)
+			std::cout<<"Search: "<<++numSearches<<std::endl;
+			std::vector<CompositeVertex> shortestPath = AStar();
+			// std::cout<<"Graph Size- #Vertices: "<<num_vertices(graph)<<" #Edges: "<<num_edges(graph)<<std::endl;
+			// double pathLength=0;
+			// for(size_t i=0; i<shortestPath.size()-1; i++)
+			// {
+			//  CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
+			//  pathLength+=graph[uv].length;
+			// }
+			// std::cout<<"Path Length: "<<pathLength<<" ";
+			// std::cout<<"Path: ";
+			// for(Vertex &nodes: shortestPath )
+			//  std::cout<<graph[nodes].vertex_index<<" ";
+			// std::cout<<std::endl<<std::endl;
+			// displayPath(graph,shortestPath);
+			if(shortestPath.size()==0)
+				break;
+
+			solutionFound = true;
+			for(size_t i=0; i<shortestPath.size()-1; i++)
 			{
-				graph[uv].isEvaluated = true;
-				if(!evaluateEdge(uv))
+				CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
+				if(!graph[uv].isEvaluated)
 				{
-					// std::cout<<"Edge between"<<graph[shortestPath.at(i)].vertex_index<<" and "
-					//  <<graph[shortestPath.at(i+1)].vertex_index<<" is in collision."<<std::endl;
-					graph[uv].length = std::numeric_limits<double>::infinity();
-					solutionFound = false;
-					break;
+					graph[uv].isEvaluated = true;
+					if(!evaluateEdge(uv))
+					{
+						// std::cout<<"Edge between"<<graph[shortestPath.at(i)].vertex_index<<" and "
+						//  <<graph[shortestPath.at(i+1)].vertex_index<<" is in collision."<<std::endl;
+						graph[uv].length = std::numeric_limits<double>::infinity();
+						solutionFound = false;
+						break;
+					}
 				}
 			}
 		}
@@ -1027,6 +1030,60 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 	// std::vector<CompositeVertex> shortestPath = AStar();
 	// if(shortestPath.size()==0)
 	//  OMPL_INFORM("Solution NOT PRESENT!");
+	else
+	{
+		initLPA();
+		while(!solutionFound)
+		{
+			std::cout<<"Search: "<<++numSearches<<std::endl;
+			double pathCost;
+			std::vector<CompositeVertex> shortestPath = compute_shortest_path(pathCost);
+			std::cout<<"Graph Size- #Vertices: "<<num_vertices(graph)<<" #Edges: "<<num_edges(graph)<<std::endl;
+			double pathLength=0;
+			for(size_t i=0; i<shortestPath.size()-1; i++)
+			{
+			 CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
+			 pathLength+=graph[uv].length;
+			}
+			std::cout<<"Path Length: "<<pathLength<<" ";
+			std::cout<<"Path: ";
+			for(Vertex &nodes: shortestPath )
+			 std::cout<<graph[nodes].vertex_index<<" ";
+			std::cout<<std::endl<<std::endl;
+			// displayPath(graph,shortestPath);
+			if(shortestPath.size()==0)
+				break;
+
+			solutionFound = true;
+			for(size_t i=0; i<shortestPath.size()-1; i++)
+			{
+				CompositeVertex u = shortestPath.at(i);
+				CompositeVertex v = shortestPath.at(i + 1);
+				CompositeEdge uv = getEdge(u,v);            
+				if(!graph[uv].isEvaluated)
+				{
+					graph[uv].isEvaluated = true;
+					if(!evaluateEdge(uv))
+					{
+						graph[uv].length = std::numeric_limits<double>::infinity();
+						// Update forward direction.
+						
+						if (update_predecessor(u, v, graph[uv].length))
+							update_vertex(v);
+
+						// Update reverse direction.
+						if (update_predecessor(v, u, graph[uv].length))
+							update_vertex(u);
+						
+						// std::cout<<"Edge between"<<graph[shortestPath.at(i)].vertex_index<<" and "
+						//  <<graph[shortestPath.at(i+1)].vertex_index<<" is in collision."<<std::endl;
+						solutionFound = false;
+						break;
+					}
+				}
+			}
+		}
+	}
 
 	std::chrono::time_point<std::chrono::system_clock> endTime{std::chrono::system_clock::now()};
 	std::chrono::duration<double> elapsedSeconds{endTime-startTime};
@@ -1049,7 +1106,7 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 	else
 	{
 		OMPL_INFORM("Solution NOT Found");
-		displayGraph(graph);
+		// displayGraph(graph);
 	}
 }
 // ===========================================================================================
@@ -1312,7 +1369,7 @@ bool MINT::areEqual( double a, double b)
 	return false;
 }
 
-void MINT::reset()
+void MINT::initLPA()
 {
   CompositeVertexIter vi, vi_end;
   for (boost::tie(vi,vi_end)=vertices(graph); vi!=vi_end; ++vi)
@@ -1457,26 +1514,24 @@ std::vector<CompositeVertex> MINT::compute_shortest_path(double& costOut)
 	 if ( !areEqual(graph[u].distance, graph[u].distance_lookahead) && graph[u].distance > graph[u].distance_lookahead)
 	 {
 		graph[u].distance = graph[u].distance_lookahead;
-		CompositeOutEdgeIter ei, ei_end;
-		for (boost::tie(ei,ei_end)=out_edges(u,graph); ei!=ei_end; ei++)
+		std::vector<CompositeVertex> neighbors = getNeighbors(u);
+		for (auto &successor: neighbors)
 		{
-		   CompositeVertex v = target(*ei,graph);
-		   bool lookahead_changed = update_predecessor(u, v, graph[*ei].length);
+		   bool lookahead_changed = update_predecessor(u, successor, graph[getEdge(u,successor)].length);
 		   if (lookahead_changed)
-			  update_vertex(v);
+			  update_vertex(successor);
 		}
 	 }
 	 else
 	 {
 		graph[u].distance = std::numeric_limits<double>::infinity();
 		update_vertex(u);
-		CompositeOutEdgeIter ei, ei_end;
-		for (boost::tie(ei,ei_end)=out_edges(u,graph); ei!=ei_end; ei++)
+		std::vector<CompositeVertex> neighbors = getNeighbors(u);
+		for (auto &successor: neighbors)
 		{
-		   CompositeVertex v = target(*ei,graph);
-		   bool lookahead_changed = update_predecessor(u, v, graph[*ei].length);
+		   bool lookahead_changed = update_predecessor(u, successor, graph[getEdge(u,successor)].length);
 		   if (lookahead_changed)
-			  update_vertex(v);
+			  update_vertex(successor);
 		}
 	 }
   }
