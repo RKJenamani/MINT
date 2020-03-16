@@ -187,6 +187,12 @@ namespace BGL_DEFINITIONS {
   /// Boost edge iterator
   typedef boost::graph_traits<Graph>::edge_iterator EdgeIter;
 
+  /// Boost graph out edge iterator
+  typedef boost::graph_traits<Graph>::out_edge_iterator OutEdgeIter;
+
+  /// Boost graph in edge iterator
+  typedef boost::graph_traits<Graph>::in_edge_iterator InEdgeIter;
+
   /// Boost graph neighbor iterator
   typedef boost::graph_traits<Graph>::adjacency_iterator NeighborIter;
 

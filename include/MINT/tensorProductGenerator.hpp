@@ -376,8 +376,7 @@ public:
 				new_node = add_vertex(composite_map);
 				composite_map[new_node].state = newState;
 				composite_map[new_node].vertex_index = boost::num_vertices(composite_map) - 1;
-				composite_map[new_node].heuristic = std::max( (adjacent_composite_config.segment(0,dim)-goal_config.segment(0,dim)).norm(),
-					(adjacent_composite_config.segment(dim,dim)-goal_config.segment(dim,dim)).norm());
+				composite_map[new_node].heuristic = std::max(left_map[*ai_l].heuristic,right_map[*ai_r].heuristic);
 
 				configToNodeMap[adjacent_composite_config]=new_node;
 				// add_vertices_count++;
@@ -460,8 +459,7 @@ public:
 			new_node = add_vertex(composite_map);
 			composite_map[new_node].state = newState;
 			composite_map[new_node].vertex_index = boost::num_vertices(composite_map) - 1;
-			composite_map[new_node].heuristic = std::max( (adjacent_composite_config.segment(0,dim)-goal_config.segment(0,dim)).norm(),
-				(adjacent_composite_config.segment(dim,dim)-goal_config.segment(dim,dim)).norm());
+			composite_map[new_node].heuristic = std::max( left_map[curNeighbor].heuristic,right_map[right_map_node].heuristic);
 			configToNodeMap[adjacent_composite_config]=new_node;
 
 			std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);
@@ -548,8 +546,7 @@ public:
 			new_node = add_vertex(composite_map);
 			composite_map[new_node].state = newState;
 			composite_map[new_node].vertex_index = boost::num_vertices(composite_map) - 1;
-			composite_map[new_node].heuristic = std::max( (adjacent_composite_config.segment(0,dim)-goal_config.segment(0,dim)).norm(),
-				(adjacent_composite_config.segment(dim,dim)-goal_config.segment(dim,dim)).norm());
+			composite_map[new_node].heuristic = std::max( left_map[left_map_node].heuristic,right_map[curNeighbor].heuristic);
 			configToNodeMap[adjacent_composite_config]=new_node;
 
 			std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);

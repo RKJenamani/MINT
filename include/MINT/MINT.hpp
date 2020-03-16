@@ -383,6 +383,9 @@ private:
 	std::vector<CompositeVertex> AStar();
 
 
+	/// Populate heuristic function 
+	void preprocess_graph(Graph &g, Vertex &_goal);
+
 	/// LPAStar 
 	std::vector<CompositeVertex> compute_shortest_path(double& costOut);
 	void update_vertex(CompositeVertex u);
@@ -446,15 +449,6 @@ void MINT::setup()
 
 	ompl::base::Planner::setup();
 
-	// roadmapPtr = boost::shared_ptr<utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>>
-	//               (new utils::RoadmapFromFile<CompositeGraph, CompositeVPStateMap, utils::StateWrapper, CompositeEPLengthMap, CompositeEPPriorMap>
-	//               (mSpace, mRoadmapFileName));
-
-	// roadmapPtr->generate(graph,
-	//                      get(&CompositeVProp::state, graph),
-	//                      get(&CompositeEProp::length, graph),
-	//                      get(&CompositeEProp::prior, graph));
-
 	create_vertices(left_graph,get(&VProp::state,left_graph),mLeftRoadmapFileName,mSpace->getDimension()/2,get(&EProp::prior,left_graph));
 	create_edges(left_graph,get(&EProp::length,left_graph));
 
@@ -472,53 +466,6 @@ void MINT::setup()
 	{
 		put(&VProp::vertex_index,right_graph,*ind_vi,i);
 	}
-
-	// VertexIter ind_vi, ind_vi_end;
-
-	// std::unordered_map<Eigen::VectorXd, CompositeVertex, matrix_hash<Eigen::VectorXd>> configToNodeMap;
-
-	// for(boost::tie(ind_vi,ind_vi_end) = vertices(individual_graph); ind_vi!=ind_vi_end; ind_vi++)
-	// {
-	//   Eigen::VectorXd config = individual_graph[*ind_vi].state;
-	//   utils::StateWrapperPtr newState(new utils::StateWrapper(mSpace));
-	//   ompl::base::State *ver_state{newState->state};
-	//   double *values{ver_state->as<ompl::base::RealVectorStateSpace::StateType>()->values};
-	//   for (size_t ui = 0; ui < mSpace->getDimension(); ui++)
-	//   {
-	//     values[ui] = config[ui];
-	//   }
-		
-	//   CompositeVertex newVertex = boost::add_vertex(graph);
-	//   graph[newVertex].state = newState;
-	//   configToNodeMap[config]=newVertex;
-	// }
-
-	// EdgeIter ind_ei, ind_ei_end;
-	// for (boost::tie(ind_ei, ind_ei_end) = edges(individual_graph); ind_ei != ind_ei_end; ++ind_ei)
-	// {
-	//   CompositeVertex source_vertex = configToNodeMap[individual_graph[source(*ind_ei, individual_graph)].state];
-	//   CompositeVertex target_vertex = configToNodeMap[individual_graph[target(*ind_ei, individual_graph)].state];
-	//   std::pair<CompositeEdge,bool> newEdge = boost::add_edge(source_vertex, target_vertex, graph);
-	//   graph[newEdge.first].length = mSpace->distance(graph[source_vertex].state->state, graph[target_vertex].state->state);
-	//   graph[newEdge.first].prior = 1.0;
-	// }
-	// // Set default vertex values.
-	// CompositeVertexIter vi, vi_end;
-	// for (boost::tie(vi, vi_end) = vertices(graph); vi != vi_end; ++vi)
-	// {
-	//   graph[*vi].distance = std::numeric_limits<double>::infinity();
-	//   graph[*vi].heuristic = std::numeric_limits<double>::infinity();
-	//   graph[*vi].visited = false;
-	//   graph[*vi].status = CollisionStatus::FREE;
-	// }
-
-	// // Set default edge values.
-	// CompositeEdgeIter ei, ei_end;
-	// for (boost::tie(ei, ei_end) = edges(graph); ei != ei_end; ++ei)
-	// {
-	//   graph[*ei].isEvaluated = false;
-	//   graph[*ei].status = CollisionStatus::FREE;
-	// }
 
 	mBestPathCost = std::numeric_limits<double>::infinity();
 }
@@ -666,6 +613,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 		}
 	}
 
+	preprocess_graph(left_graph, left_goal_vertex);
+
 	// std::cout<<"Left Graph: Start Degree: "<<startDegree<<" Goal Degree: "<<goalDegree<<std::endl;
 
 
@@ -715,6 +664,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 		}
 	}
 
+	preprocess_graph(right_graph, right_goal_vertex);
+
 	// std::cout<<"Right Graph: Start Degree: "<<startDegree<<" Goal Degree: "<<goalDegree<<std::endl;
 	
 	// Add start and goal vertices to the graph
@@ -728,8 +679,7 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 
 	// Assign default values
 	graph[mStartVertex].distance = 0;
-	graph[mStartVertex].heuristic = std::max((left_start_config- left_goal_config).norm(),
-		(right_start_config - right_goal_config).norm()) ;
+	graph[mStartVertex].heuristic = std::max(left_graph[left_start_vertex].heuristic,right_graph[right_start_vertex].heuristic);
 	graph[mStartVertex].parent = -1;
 	graph[mStartVertex].visited = false;
 	graph[mStartVertex].status = CollisionStatus::FREE;
@@ -743,56 +693,83 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// std::cout<<left_graph[left_start_vertex].state<<std::endl;
 	// Populate the tensor product generator class
 	mTPG.populateMaps(left_graph,right_graph,graph,mStartVertex,mGoalVertex);
+}
 
-	// getNeighbors(mStartVertex);
-	// std::cout<<"Left Edge Status: "<<edge(left_start_vertex, left_goal_vertex , left_graph).second<<std::endl;
-	// std::cout<<"Right Edge Status: "<<edge(right_start_vertex, right_goal_vertex , right_graph).second<<std::endl;
-	// std::cout<<"Composite Edge Status: "<<edge(mStartVertex, mGoalVertex , graph).second<<std::endl;
+void MINT::preprocess_graph(Graph &g, Vertex & _goal)
+{
+	std::unordered_map<Vertex,bool> sptSet; //shortestPath set
+	std::unordered_map<Vertex,Vertex> parentMap;
+	std::unordered_map<Vertex,double> distanceMap;
 
-	// size_t countval=0;
-	// std::cout<<"Nodes connected to left start vertex: ";
-	// NeighborIter ai, aiend;
-	// for (boost::tie(ai, aiend) = adjacent_vertices(left_start_vertex, left_graph); ai != aiend; ++ai) 
-	// {
-	//  std::cout<<left_graph[*ai].vertex_index<<" ";
-	//  countval++;
-	// }
-	// std::cout<<std::endl;
-	// std::cout<<countval<<std::endl;
-	// countval=0;
-	// std::cout<<"Nodes connected to right start vertex: ";
-	// for (boost::tie(ai, aiend) = adjacent_vertices(right_start_vertex, right_graph); ai != aiend; ++ai) 
-	// {
-	//  std::cout<<right_graph[*ai].vertex_index<<" ";
-	//  countval++;
-	// }
-	// std::cout<<std::endl;
-	// std::cout<<countval<<std::endl;
-	// countval=0;
-	// std::cout<<"Nodes connected to composite start vertex: ";
-	// CompositeNeighborIter aic, aiendc;
-	// for (boost::tie(aic, aiendc) = adjacent_vertices(mStartVertex, graph); aic != aiendc; ++aic) 
-	// {
-	//  std::cout<<graph[*aic].vertex_index<<" ";
-	//  countval++;
-	// }
-	// std::cout<<std::endl;
-	// std::cout<<countval<<std::endl;
+	VPStateMap stateMap = get(&VProp::state,g);
 
-	// std::cin.get();
-	// ///explicit
-	// mTPG.explicitTPG(left_graph,mSpace->getDimension()/2,right_graph,mSpace->getDimension()/2,graph, left_goal_config, right_goal_config);
+	Vertex goal_vertex=_goal;
 
-	// std::cout<<"Press [ENTER] to continue:";
-	// std::cin.get();
-	// Eigen::VectorXd start_config(mSpace->getDimension());
-	// Eigen::VectorXd goal_config(mSpace->getDimension());
+	VertexIter vi, viend;
+	
+	int numVertices=0;
+  	for (boost::tie(vi, viend) = vertices(g); vi != viend; ++vi) 
+  	{
+  		numVertices++;
+  		distanceMap[*vi]=std::numeric_limits<double>::infinity();
+  	}
 
-	// start_config << left_start_config, right_start_config;
-	// goal_config << left_goal_config, right_goal_config;
+  	parentMap.clear();
+  	sptSet.clear();
+  	distanceMap[goal_vertex]=0;
+  	int totalVertices=numVertices+1;
+  	
+  	while(numVertices>1)
+  	{
+  		std::cout<< "[INFO]: Preprocess Search "<<totalVertices-numVertices<<std::endl;
 
-	// mStartVertex = mTPG.configToNodeTPG(start_config);
-	// mGoalVertex = mTPG.configToNodeTPG(goal_config);
+  		std::cout<<numVertices<<std::endl;
+  		// mindDistance
+		double min_dist= std::numeric_limits<double>::infinity();
+		Vertex min_vertex;
+		for (boost::tie(vi, viend) = vertices(g); vi != viend; ++vi) 
+	  	{
+	  		if(!sptSet.count(*vi) && distanceMap[*vi]<min_dist)
+	  		{
+	  			min_dist = distanceMap[*vi];
+	  			min_vertex = *vi;
+	  		}
+	  	}
+
+  		Vertex node = min_vertex;
+  		sptSet[node]=1;
+
+		std::vector<Vertex> successors;
+		OutEdgeIter ei, ei_end;
+
+		for (boost::tie(ei, ei_end) = out_edges(node, g); ei != ei_end; ++ei) 
+		{
+    		Vertex curPred = target(*ei, g);
+    		successors.push_back(curPred);
+		}
+
+  		for(Vertex successor : successors )
+  		{
+  			Edge uv;
+			bool edgeExists;
+			boost::tie(uv, edgeExists) = edge(node, successor, g);
+
+  			if( !sptSet.count(successor) && (distanceMap[successor] > g[uv].length) )
+  			{
+  				distanceMap[successor] = distanceMap[node] + g[uv].length;
+  				parentMap[successor]=node;
+  			}
+  		}
+  		numVertices--;
+  	}
+
+  	for (boost::tie(vi, viend) = vertices(g); vi != viend; ++vi) 
+  	{
+  		g[*vi].heuristic = distanceMap[*vi];
+  		std::cout<<"Index:"<<g[*vi].vertex_index<<" heuristic:"<<g[*vi].heuristic<<std::endl;
+  	}
+  	std::cout<<"Preprocessing Done. Press [ENTER] to continue:"<<std::endl;
+  	std::cin.get();
 }
 
 std::vector<CompositeVertex> MINT::getNeighbors(CompositeVertex &v)
@@ -1336,26 +1313,6 @@ double MINT::estimateCostToCome(CompositeVertex v) const
 double MINT::heuristicFunction(CompositeVertex v) const
 {
 	return graph[v].heuristic;
-	// return mSpace->distance(graph[v].state->state, graph[mGoalVertex].state->state);
-	// double* config_values = 
-	//  graph[v].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-
-	// Eigen::VectorXd composite_config(14);
-	// composite_config << config_values[0],config_values[1],config_values[2],config_values[3],
-	//  config_values[4],config_values[5],config_values[6],config_values[7],
-	//  config_values[8],config_values[9],config_values[10],config_values[11],
-	//  config_values[12],config_values[13];
-
-	// double* goal_config_values = 
-	//  graph[mGoalVertex].state->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-
-	// Eigen::VectorXd goal_composite_config(14);
-	// goal_composite_config << goal_config_values[0],goal_config_values[1],goal_config_values[2],goal_config_values[3],
-	//  goal_config_values[4],goal_config_values[5],goal_config_values[6],goal_config_values[7],
-	//  goal_config_values[8],goal_config_values[9],goal_config_values[10],goal_config_values[11],
-	//  goal_config_values[12],goal_config_values[13];
-	// return std::max((composite_config.segment(0,7)-goal_composite_config.segment(7,7)).norm(),
-	//                      (composite_config.segment(7,7)-goal_composite_config.segment(7,7)).norm());
 }
 
 double MINT::estimateTotalCost(CompositeVertex v) const
