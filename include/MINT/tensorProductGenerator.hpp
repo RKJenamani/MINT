@@ -259,14 +259,14 @@ public:
 		// std::cin.get();
 
 		std::vector<CompositeVertex> neighbors;
-		CompositeNeighborIter ai, aiend;
+		CompositeOutEdgeIter out_i, out_end;
 		NeighborIter ai_l, aiend_l, ai_r, aiend_r ;
 
 		if(neighborsAddedMap.count(composite_map[node].vertex_index))
 		{
-			for (boost::tie(ai, aiend) = adjacent_vertices(node, composite_map); ai != aiend; ++ai) 
+			for (boost::tie(out_i, out_end) = out_edges(node, composite_map); out_i != out_end; ++out_i) 
 			{
-				neighbors.push_back(*ai);
+				neighbors.push_back(target(*out_i,composite_map));
 			}
 			return neighbors;
 		}
@@ -350,6 +350,13 @@ public:
 							(adjacent_composite_config.segment(dim,dim)-composite_config.segment(dim,dim)).norm());
 						composite_map[curEdge.first].prior = 1.0;
 
+						// the reverse for directed edges
+						curEdge = boost::add_edge(node, new_node, composite_map);
+						// graph[newEdge.first].length = mSpace->distance(graph[new_node].state->state, graph[node].state->state);
+						composite_map[curEdge.first].length = std::max( (adjacent_composite_config.segment(0,dim)-composite_config.segment(0,dim)).norm(),
+							(adjacent_composite_config.segment(dim,dim)-composite_config.segment(dim,dim)).norm());
+						composite_map[curEdge.first].prior = 1.0;
+
 						// Edge curEdge;
 						// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
 						// curEdge = (add_edge(new_node, node, composite_map)).first;
@@ -383,6 +390,12 @@ public:
 
 				// Edge curEdge;
 				std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);
+				composite_map[curEdge.first].length = std::max( (adjacent_composite_config.segment(0,dim)-composite_config.segment(0,dim)).norm(),
+					(adjacent_composite_config.segment(dim,dim)-composite_config.segment(dim,dim)).norm());
+				composite_map[curEdge.first].prior = 1.0;
+
+				// reverse for directed graphs
+				curEdge = boost::add_edge(node, new_node, composite_map);
 				composite_map[curEdge.first].length = std::max( (adjacent_composite_config.segment(0,dim)-composite_config.segment(0,dim)).norm(),
 					(adjacent_composite_config.segment(dim,dim)-composite_config.segment(dim,dim)).norm());
 				composite_map[curEdge.first].prior = 1.0;
@@ -427,19 +440,12 @@ public:
 				{
 					std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);
 					composite_map[curEdge.first].prior = 1.0;
-					// Edge curEdge;
-					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
-					// curEdge = (add_edge(new_node, node, composite_map)).first;
+					composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
 
-					if(right_goal_config.isApprox(composite_config.segment(dim,dim)))
-					{
-						composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
-					}
-					else
-					{
-						composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm() + PAUSE_PENALTY;
-						// weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
-					}
+					// reverse for directed graphs
+					curEdge = boost::add_edge(node, new_node, composite_map);
+					composite_map[curEdge.first].prior = 1.0;
+					composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
 				}
 				neighbors.push_back(new_node);
 				// edges_count++;
@@ -464,22 +470,13 @@ public:
 
 			std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);
 			composite_map[curEdge.first].prior = 1.0;
+			composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
 
-			// Edge curEdge;
-			// bool edge_status = edge(new_node, node, composite_map).second;
-			// std::cout<<"Edge Status: "<<edge_status<<std::endl;
-			// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
-			// curEdge = (add_edge(new_node, node, composite_map)).first;
+			// reverse for directed graphs
+			curEdge = boost::add_edge(node, new_node, composite_map);
+			composite_map[curEdge.first].prior = 1.0;
+			composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
 
-			if(right_goal_config.isApprox(composite_config.segment(dim,dim)))
-			{
-				composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
-			}
-			else
-			{
-				composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm()+PAUSE_PENALTY;
-				// weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
-			}
 			// edges_count++;
 			// add_vertices_count++;
 			neighbors.push_back(new_node);
@@ -513,19 +510,13 @@ public:
 				{
 					std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);
 					composite_map[curEdge.first].prior = 1.0;
-					// Edge curEdge;
-					// std::cout<<"Adding edge between "<<indexMap[new_node]<<" and "<<indexMap[node]<<std::endl;
-					// curEdge = (add_edge(new_node, node, composite_map)).first;
+					composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
 
-					if(left_goal_config.isApprox(composite_config.segment(0,dim)))
-					{
-						composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
-					}
-					else
-					{
-						composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm() + PAUSE_PENALTY;
-						// weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
-					}
+					// reverse for directed graphs
+					curEdge = boost::add_edge(node, new_node, composite_map);
+					composite_map[curEdge.first].prior = 1.0;
+					composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
+
 				}
 
 				// edges_count++;
@@ -551,16 +542,12 @@ public:
 
 			std::pair<CompositeEdge,bool> curEdge = boost::add_edge(new_node, node, composite_map);
 			composite_map[curEdge.first].prior = 1.0;
+			composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
 
-			if(left_goal_config.isApprox(composite_config.segment(0,dim)))
-			{
-				composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
-			}
-			else
-			{
-				composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm() + PAUSE_PENALTY;
-				// weightMap[curEdge]=(stateMap[new_node]-stateMap[node]).norm();
-			}
+			curEdge = boost::add_edge(node, new_node, composite_map);
+			composite_map[curEdge.first].prior = 1.0;
+			composite_map[curEdge.first].length=(adjacent_composite_config- composite_config).norm();
+
 			// edges_count++;
 			// add_vertices_count++;
 			neighbors.push_back(new_node);

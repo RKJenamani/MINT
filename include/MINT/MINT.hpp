@@ -969,19 +969,31 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 	std::chrono::time_point<std::chrono::system_clock> startTime{std::chrono::system_clock::now()};
 
 	size_t numSearches=0;
+  	std::cout<<"Press [ENTER] to start search:"<<std::endl;
+  	std::cin.get();
 	if(mPlannerName == "LazySP")
 	{
 		while(!solutionFound)
 		{
+		  	// std::cout<<"LazySP search loop. Press [ENTER] to continue:"<<std::endl;
+		  	// std::cin.get();
 			std::cout<<"Search: "<<++numSearches<<std::endl;
 			std::vector<CompositeVertex> shortestPath = AStar();
 			std::cout<<"Graph Size- #Vertices: "<<num_vertices(graph)<<" #Edges: "<<num_edges(graph)<<std::endl;
 			double pathLength=0;
+			// for(size_t i=0; i<shortestPath.size(); i++)
+			// {
+				// std::cout<<graph[shortestPath.at(i)].vertex_index<<std::endl;
+			// }
+		  	// std::cout<<"Preprocessing Done. Press [ENTER] to continue:"<<std::endl;
+		  	// std::cin.get();
 			for(size_t i=0; i<shortestPath.size()-1; i++)
 			{
 			 CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
 			 pathLength+=graph[uv].length;
 			}
+			  	// std::cout<<"Preprocessing Done. Press [ENTER] to continue:"<<std::endl;
+  	// std::cin.get();
 			std::cout<<"Path Length: "<<pathLength<<" ";
 			std::cout<<"Path: ";
 			for(Vertex &nodes: shortestPath )
@@ -994,15 +1006,18 @@ ompl::base::PlannerStatus MINT::solve(const ompl::base::PlannerTerminationCondit
 			solutionFound = true;
 			for(size_t i=0; i<shortestPath.size()-1; i++)
 			{
-				CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));            
+				CompositeEdge uv = getEdge(shortestPath.at(i),shortestPath.at(i+1));
+				CompositeEdge uv_reverse = getEdge(shortestPath.at(i+1),shortestPath.at(i));            
 				if(!graph[uv].isEvaluated)
 				{
 					graph[uv].isEvaluated = true;
+					graph[uv_reverse].isEvaluated = true;
 					if(!evaluateEdge(uv))
 					{
 						// std::cout<<"Edge between"<<graph[shortestPath.at(i)].vertex_index<<" and "
 						//  <<graph[shortestPath.at(i+1)].vertex_index<<" is in collision."<<std::endl;
 						graph[uv].length = std::numeric_limits<double>::infinity();
+						graph[uv_reverse].length = std::numeric_limits<double>::infinity();
 						solutionFound = false;
 						break;
 					}
@@ -1299,6 +1314,11 @@ CompositeEdge MINT::getEdge(CompositeVertex u, CompositeVertex v) const
 	CompositeEdge uv;
 	bool edgeExists;
 	boost::tie(uv, edgeExists) = edge(u, v, graph);
+	if (edgeExists == false)
+	{
+		std::cout<<"Edge does not exist. Press [ENTER] to get segmentation fault :( :"<<std::endl;
+  		std::cin.get();
+  	}
 
 	return uv;
 }

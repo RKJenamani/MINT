@@ -86,7 +86,7 @@ namespace BGL_DEFINITIONS {
 
   // Helpful alias declarations
   /// Undirected Boost graph
-  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, CompositeVProp, CompositeEProp> CompositeGraph;
+  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, CompositeVProp, CompositeEProp> CompositeGraph;
 
   /// Boost vertex
   typedef boost::graph_traits<CompositeGraph>::vertex_descriptor CompositeVertex;
