@@ -218,6 +218,10 @@ public:
 	/// Get the shortest path cost.
 	double getBestPathCost() const;
 
+	/// Get the distance between two Eigens
+	double getDistance(Eigen::VectorXd config_one, Eigen::VectorXd config_two); 
+
+
 	///////////////////////////////////////////////////////////////////
 
 	///////////////////////////////////////////////////////////////////
@@ -585,8 +589,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	VertexIter ind_vi, ind_vi_end;
 	for (boost::tie(ind_vi, ind_vi_end) = vertices(left_graph); ind_vi != ind_vi_end; ++ind_vi)
 	{
-		double startDist = (left_graph[left_start_vertex].state-left_graph[*ind_vi].state).norm();
-		double goalDist = (left_graph[left_goal_vertex].state-left_graph[*ind_vi].state).norm();
+		double startDist = getDistance(left_graph[left_start_vertex].state, left_graph[*ind_vi].state);
+		double goalDist = getDistance(left_graph[left_goal_vertex].state, left_graph[*ind_vi].state);
 
 		if (startDist < mConnectionRadius)
 		{
@@ -636,8 +640,8 @@ void MINT::setProblemDefinition(const ompl::base::ProblemDefinitionPtr &pdef)
 	// VertexIter ind_vi, ind_vi_end;
 	for (boost::tie(ind_vi, ind_vi_end) = vertices(right_graph); ind_vi != ind_vi_end; ++ind_vi)
 	{
-		double startDist = (right_graph[right_start_vertex].state-right_graph[*ind_vi].state).norm();
-		double goalDist = (right_graph[right_goal_vertex].state-right_graph[*ind_vi].state).norm();
+		double startDist = getDistance(right_graph[right_start_vertex].state, right_graph[*ind_vi].state);
+		double goalDist = getDistance(right_graph[right_goal_vertex].state, right_graph[*ind_vi].state);
 
 		if (startDist < mConnectionRadius)
 		{
@@ -1340,6 +1344,11 @@ double MINT::estimateTotalCost(CompositeVertex v) const
 	return estimateCostToCome(v) + heuristicFunction(v);
 }
 
+double MINT::getDistance(Eigen::VectorXd config_one, Eigen::VectorXd config_two) 
+{
+	double epsilon = 0.2;
+	return epsilon*ceil((config_one-config_two).norm()*(1/epsilon));
+}
 
 ////////////////////////////////////LPAStar
 

@@ -87,7 +87,8 @@ void create_vertices(Graph& g, VPStateMap state_map, std::string filename, unsig
 
 double getWeight(const Graph& g,const Vertex& u, const Vertex& v)
 {
-	double weight= (g[u].state - g[v].state).norm();
+	double epsilon = 0.2;
+	double weight = epsilon*ceil((g[u].state - g[v].state).norm()*(1/epsilon));
 	return weight;
 }
 void create_edges(Graph& g, EPLengthMap weight_map)
